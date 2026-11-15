@@ -1,0 +1,46 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: dogfood verify (own AGENTS.md, strict)
+        run: node src/cli.js verify AGENTS.md --min-level strict
+      - name: smoke (help + packs + doctor)
+        run: |
+          node src/cli.js help
+          node src/cli.js packs
+          node src/cli.js doctor || true
+      - name: init idempotency fixture
+        run: |
+          set -e
+          mkdir -p .tmp-fixture && cd .tmp-fixture
+          echo "# fixture" > AGENTS.md
+          node ../src/cli.js init --level strict --yes
+          cp AGENTS.md first.md
+          node ../src/cli.js init --level strict --yes
+          diff -u first.md AGENTS.md
+          cd ..
+          rm -rf .tmp-fixture
+      - name: off-level removal fixture
+        run: |
+          set -e
+          mkdir -p .tmp-fixture2 && cd .tmp-fixture2
+          node ../src/cli.js init --level strict --yes
+          node ../src/cli.js init --level off --yes
+          ! grep -q "agent-economy:start" AGENTS.md
+          cd ..
+          rm -rf .tmp-fixture2
+      - name: package is publishable
+        run: npm publish --dry-run

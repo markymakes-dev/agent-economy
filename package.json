@@ -1,6 +1,13 @@
 {
   "name": "agent-economy",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "files": [
+    "src",
+    "packs",
+    "AGENTS.md",
+    "README.md",
+    "LICENSE"
+  ],
   "description": "Request economy for coding agents — treat every model round-trip as the billable unit. Idempotent AGENTS.md presets, tool detection, CI verify.",
   "type": "module",
   "bin": {
@@ -23,6 +30,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/YOURORG/agent-economy.git"
+    "url": "git+https://github.com/markymakes-dev/agent-economy.git"
   }
 }

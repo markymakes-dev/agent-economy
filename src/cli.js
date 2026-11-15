@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
@@ -102,6 +102,45 @@ function packs() {
   for (const p of reg.packs) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
 }
 
+async function installPack(id, dir) {
+  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
+  const p = reg.packs.find((x) => x.id === id);
+  if (!p) { console.error(`  ✘ unknown pack "${id}"`); process.exit(2); }
+  if (!Array.isArray(p.install) || !p.install.length) {
+    console.error(`  ✘ pack "${id}" has no curated install spec yet (status: ${p.status})`);
+    process.exit(2);
+  }
+  const target = path.resolve(dir || path.join(os.homedir(), ".claude", "skills"));
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "ae-pack-"));
+  try {
+    const url = `https://codeload.github.com/${p.source}/tar.gz/refs/heads/${p.ref || "main"}`;
+    console.log(`  ↓ ${url}`);
+    const res = await fetch(url);
+    if (!res.ok) { console.error(`  ✘ download failed: HTTP ${res.status}`); process.exit(2); }
+    const tgz = path.join(work, "pack.tgz");
+    fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
+    const root = path.join(work, "x");
+    fs.mkdirSync(root, { recursive: true });
+    const r = spawnSync("tar", ["-xzf", tgz, "-C", root]);
+    if (r.status !== 0) { console.error("  ✘ untar failed (is tar available?)"); process.exit(2); }
+    const base = path.join(root, fs.readdirSync(root)[0]);
+    fs.mkdirSync(target, { recursive: true });
+    for (const spec of p.install) {
+      const from = path.join(base, spec.from);
+      const to = path.join(target, spec.to);
+      if (!fs.existsSync(from)) { console.error(`  ✘ missing in pack: ${spec.from}`); process.exit(2); }
+      fs.cpSync(from, to, { recursive: true });
+      console.log(`  ✔ ${spec.from} → ${to}`);
+    }
+    const attr = path.join(target, `${p.id}.ATTRIBUTION.md`);
+    fs.writeFileSync(attr, `# ${p.id}\n\nSource: https://github.com/${p.source} (ref ${p.ref || "main"})\nInstalled by agent-economy on ${new Date().toISOString()}\nLicense: see the pack repository.\n`);
+    console.log(`  ✔ attribution → ${attr}`);
+    console.log(`  = done: ${p.id} installed to ${target}`);
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+}
+
 function listDir(p, filter) {
   try { return fs.readdirSync(p, { withFileTypes: true }).filter((d) => filter(d, p)).map((d) => d.name); }
   catch { return []; }
@@ -164,6 +203,8 @@ const HELP = `
     doctor    Detect agent tooling (rtk, billion-context, goal plugin, ...)
     inventory List plugins/skills/MCP actually loaded on this machine
     packs     List curated third-party rule/skill packs
+              --install <id> [--dir <target>]   fetch + install a curated pack
+                                                (default target: ~/.claude/skills)
     help      This text
 
   Every model round-trip bills one request. Batch the independent ones.
@@ -212,7 +253,10 @@ async function main() {
 
   if (cmd === "doctor") return doctor();
   if (cmd === "inventory") return inventory();
-  if (cmd === "packs") return packs();
+  if (cmd === "packs") {
+    if (get("--install")) return installPack(get("--install"), get("--dir"));
+    return packs();
+  }
   console.log(HELP);
 }
 

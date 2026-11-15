@@ -3,30 +3,37 @@
     {
       "id": "karpathy-rules",
       "source": "multica-ai/andrej-karpathy-skills",
+      "ref": "main",
       "kind": "rules",
-      "status": "planned",
+      "status": "curated",
+      "install": [
+        { "from": "skills/karpathy-guidelines", "to": "karpathy-guidelines" }
+      ],
       "note": "Behavior rules distilled from Karpathy's LLM coding-pitfall observations"
     },
     {
       "id": "matt-skills",
       "source": "mattpocock/skills",
+      "ref": "main",
       "kind": "skills",
       "status": "planned",
-      "note": "Matt Pocock's .agents directory — engineering skills for real codebases"
+      "note": "Matt Pocock's .agents directory — engineering skills for real codebases (install spec TBD)"
     },
     {
       "id": "ecc-harness",
       "source": "affaan-m/ECC",
+      "ref": "main",
       "kind": "harness",
       "status": "planned",
-      "note": "Agent-harness performance patterns: skills, instincts, memory, security"
+      "note": "Agent-harness performance patterns: skills, instincts, memory, security (install spec TBD)"
     },
     {
       "id": "anthropic-skills",
       "source": "anthropics/skills",
+      "ref": "main",
       "kind": "skills",
       "status": "planned",
-      "note": "Official Anthropic agent skills"
+      "note": "Official Anthropic agent skills (install spec TBD)"
     }
   ]
 }
