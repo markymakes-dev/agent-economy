@@ -14,13 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # No registry-url: setup-node would write an .npmrc interpolating
+      # NODE_AUTH_TOKEN, and that (limited) token then overrides OIDC auth —
+      # npm authenticated as it and soft-404'd the PUT.
       - uses: actions/setup-node@v4
         with:
-          node-version: 24 # npm >=11.5 ships OIDC trusted publishing
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+      - run: npm install -g npm@latest # OIDC trusted publishing needs npm >= 11.5.1
       - run: npm test
-      # Blank the token env that setup-node leaves in the job environment —
-      # a stale/limited token overrides OIDC and npm soft-404s the PUT.
       - run: npm publish --provenance
         env:
           NODE_AUTH_TOKEN: ""
