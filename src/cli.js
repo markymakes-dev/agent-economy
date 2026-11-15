@@ -89,7 +89,7 @@ function doctor() {
     ["rtk (output filter)", hasBin("rtk"), "winget install rtk-ai.rtk"],
     ["billion-context (context folds)", hasBin("bili") || fs.existsSync(path.join(os.homedir(), ".local", "bili.cmd")), "npm install -g billion-context --prefix=~/.local && bili plugin install opencode"],
     ["opencode CLI", hasBin("opencode"), "opencode.ai"],
-    ["/goal plugin", goalInstalled, "opencode: install prevalentWare/opencode-goal-plugin"],
+    ["/goal (opencode command)", goalInstalled || hasBin("opencode"), "built into opencode 2.x — else install prevalentWare/opencode-goal-plugin"],
     ["project AGENTS.md", fs.existsSync(path.resolve("AGENTS.md")), "economy init"],
     ["global AGENTS.md", fs.existsSync(globalFile()), "economy init --scope global"]
   ];
