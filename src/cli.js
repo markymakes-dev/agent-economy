@@ -151,14 +151,15 @@ const pkgName = (spec) => spec.replace(/@[^/@]+$/, "");
 function rtkStatus() {
   const r = spawnSync("rtk", ["--version"], { encoding: "utf8", timeout: 5000 });
   const v = (r.stdout || "").trim().split(/\r?\n/)[0] || "";
-  if (r.error && !v) return "rtk — not found";
+  if (r.error && !v) return "rtk — not found   (install: winget install rtk-ai.rtk · then: rtk init -g --opencode --hook-only --no-patch)";
   if (!v) return "rtk — installed (version unknown)";
   return v.startsWith("rtk") ? v : `rtk ${v}`;
 }
 
 async function biliStatus() {
   const dir = path.join(os.homedir(), ".local", "state", "billion-context", "instances");
-  for (const f of listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"))) {
+  const files = listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"));
+  for (const f of files) {
     try {
       const inst = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
       if (!inst.origin) continue;
@@ -169,7 +170,8 @@ async function biliStatus() {
         : `billion-context — responding, not healthy (${inst.origin})`;
     } catch { /* dead instance file, try next */ }
   }
-  return "billion-context — installed, proxy not responding";
+  if (files.length) return "billion-context — proxy not responding (restart opencode to relaunch it)";
+  return "billion-context — not detected   (install: npm i -g billion-context · then: bili plugin install opencode)";
 }
 
 async function inventory() {
