@@ -4,6 +4,7 @@
   "files": [
     "src",
     "packs",
+    "skills",
     "AGENTS.md",
     "README.md",
     "LICENSE"

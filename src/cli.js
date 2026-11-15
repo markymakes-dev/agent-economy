@@ -38,6 +38,16 @@ const startMarker = (lvl) => `<!-- agent-economy:start level=${lvl} -->`;
 const blockFor = (lvl) => [startMarker(lvl), "", HEADER, "", ...RULES[lvl], "", MARKER_END].join("\n");
 const globalFile = () => path.join(os.homedir(), ".config", "opencode", "AGENTS.md");
 
+function skill(dir) {
+  const src = path.join(ROOT, "skills", "agent-economy-setup");
+  const target = path.resolve(dir || path.join(os.homedir(), ".claude", "skills", "agent-economy-setup"));
+  fs.rmSync(target, { recursive: true, force: true });
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.cpSync(src, target, { recursive: true });
+  console.log(`  ✔ agent-economy-setup skill → ${target}`);
+  console.log("  = agents discover it automatically (opencode picks it up without restart)");
+}
+
 function upsert(file, level) {
   const exists = fs.existsSync(file);
   const prev = exists ? fs.readFileSync(file, "utf8") : "";
@@ -245,6 +255,7 @@ const HELP = `
     packs     List curated third-party rule/skill packs
               --install <id> [--dir <target>]   fetch + install a curated pack
                                                 (default target: ~/.claude/skills)
+    skill     Install the agent-economy-setup skill (teaches any agent to run ae)
     help      This text
 
   Every model round-trip bills one request. Batch the independent ones.
@@ -292,6 +303,7 @@ async function main() {
   }
 
   if (cmd === "doctor") return doctor();
+  if (cmd === "skill") return skill(get("--dir"));
   if (cmd === "inventory") return inventory();
   if (cmd === "packs") {
     if (get("--install")) return installPack(get("--install"), get("--dir"));

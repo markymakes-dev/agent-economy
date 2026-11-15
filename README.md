@@ -12,6 +12,14 @@ ae doctor                     # detect rtk / billion-context / goal plugin
 ae packs                      # curated third-party rule/skill packs
 ```
 
+### Install with your agent (no terminal needed)
+
+Paste this into opencode / Claude Code / Codex / Cursor — the agent does the rest:
+
+> Install agent-economy: run `npx -y agent-economy@latest init --level standard --yes`, then `npx -y agent-economy@latest skill`, then `npx -y agent-economy@latest doctor`, and report the results. Don't ask clarifying questions; project scope.
+
+After that, every future session discovers the `agent-economy-setup` skill and knows how to verify, re-configure, or extend the setup on its own.
+
 ## Why requests, not tokens
 
 Token-compression tools (billion-context, RTK, headroom) are plentiful. **Request-economy tooling does not exist** — yet per-request metering is what actually caps free-tier sessions (measured baseline: ~7 model requests per user message in a real opencode session). Batching 3 independent calls into 1 round saves 2 requests *and* 2 round-trips of latency, every time. No plugin can force batching — call count is decided at generation time — so the prompt is the only injection point. This project owns that injection point.
