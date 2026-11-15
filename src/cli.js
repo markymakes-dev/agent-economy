@@ -102,6 +102,51 @@ function packs() {
   for (const p of reg.packs) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
 }
 
+function listDir(p, filter) {
+  try { return fs.readdirSync(p, { withFileTypes: true }).filter((d) => filter(d, p)).map((d) => d.name); }
+  catch { return []; }
+}
+
+const pkgName = (spec) => spec.replace(/@[^/@]+$/, "");
+
+function inventory() {
+  const home = os.homedir();
+  const oc = path.join(home, ".config", "opencode");
+  const rows = [];
+  let active = new Set();
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(oc, "opencode.json"), "utf8"));
+    for (const p of j.plugin || []) { rows.push(["opencode plugin (config)", p]); active.add(pkgName(p)); }
+    for (const m of Object.keys(j.mcp || {})) rows.push(["opencode mcp", m]);
+  } catch {}
+  for (const f of listDir(path.join(oc, "plugins"), (d) => d.isFile())) rows.push(["opencode plugin (file)", f]);
+  for (const f of listDir(path.join(oc, "command"), (d) => d.isFile())) rows.push(["opencode command", f]);
+  for (const dir of [
+    path.join(oc, "skill"), path.join(oc, "skills"),
+    path.resolve(".opencode", "skill"), path.resolve(".opencode", "skills"),
+    path.join(home, ".claude", "skills")
+  ]) for (const d of listDir(dir, (e) => e.isDirectory())) rows.push([`skills  ${dir.replace(home, "~")}`, d]);
+  for (const d of listDir(path.join(home, ".claude", "plugins"), (e) => e.isDirectory())) rows.push(["claude plugin", d]);
+  const cache = path.join(home, ".cache", "opencode", "npm");
+  for (const d of listDir(cache, (e) => e.isDirectory())) {
+    if (d.startsWith("@")) for (const c of listDir(path.join(cache, d), (e) => e.isDirectory())) rows.push(["opencode npm cache", `${d}/${c}`]);
+    else rows.push(["opencode npm cache", d]);
+  }
+  const seen = new Set();
+  console.log("  Plugins / skills / MCP loaded across agents on this machine:\n");
+  let last = "";
+  let n = 0;
+  for (const [src, name] of rows) {
+    const k = `${src}|${name}`;
+    if (seen.has(k)) continue;
+    seen.add(k); n++;
+    if (src !== last) { console.log(`  ${src}`); last = src; }
+    const orphan = src === "opencode npm cache" && !active.has(pkgName(name));
+    console.log(`    · ${name}${orphan ? "   (not in config — orphaned)" : ""}`);
+  }
+  console.log(`\n  ${n} entries · health: ae doctor · curated extras: ae packs`);
+}
+
 const HELP = `
   agent-economy — request economy for coding agents
 
@@ -117,6 +162,7 @@ const HELP = `
     verify    Check a file carries the block; exit 1 missing, 2 below level
               [file=AGENTS.md] --min-level standard|strict
     doctor    Detect agent tooling (rtk, billion-context, goal plugin, ...)
+    inventory List plugins/skills/MCP actually loaded on this machine
     packs     List curated third-party rule/skill packs
     help      This text
 
@@ -165,6 +211,7 @@ async function main() {
   }
 
   if (cmd === "doctor") return doctor();
+  if (cmd === "inventory") return inventory();
   if (cmd === "packs") return packs();
   console.log(HELP);
 }
