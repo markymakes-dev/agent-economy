@@ -16,24 +16,44 @@
       "source": "mattpocock/skills",
       "ref": "main",
       "kind": "skills",
-      "status": "planned",
-      "note": "Matt Pocock's .agents directory — engineering skills for real codebases (install spec TBD)"
+      "status": "curated",
+      "install": [
+        { "from": "skills/engineering/tdd", "to": "tdd" },
+        { "from": "skills/engineering/code-review", "to": "code-review" },
+        { "from": "skills/engineering/diagnosing-bugs", "to": "diagnosing-bugs" },
+        { "from": "skills/engineering/codebase-design", "to": "codebase-design" },
+        { "from": "skills/engineering/pr", "to": "pr" },
+        { "from": "skills/productivity/writing-for-agents", "to": "writing-for-agents" }
+      ],
+      "note": "Curated subset of Matt Pocock's engineering skills (the full 66-skill collection is worth browsing; these are the evergreen ones)"
     },
     {
       "id": "ecc-harness",
       "source": "affaan-m/ECC",
       "ref": "main",
       "kind": "harness",
-      "status": "planned",
-      "note": "Agent-harness performance patterns: skills, instincts, memory, security (install spec TBD)"
+      "status": "curated",
+      "install": [
+        { "from": ".agents/skills/strategic-compact", "to": "strategic-compact" },
+        { "from": ".agents/skills/verification-loop", "to": "verification-loop" },
+        { "from": ".agents/skills/change-impact", "to": "change-impact" },
+        { "from": ".agents/skills/coding-standards", "to": "coding-standards" },
+        { "from": ".agents/skills/security-review", "to": "security-review" }
+      ],
+      "note": "Request-economy-relevant subset of ECC's harness skills (strategic-compact alone earns the install); ECC-specific skills like ecc-conventions deliberately excluded"
     },
     {
       "id": "anthropic-skills",
       "source": "anthropics/skills",
       "ref": "main",
       "kind": "skills",
-      "status": "planned",
-      "note": "Official Anthropic agent skills (install spec TBD)"
+      "status": "curated",
+      "install": [
+        { "from": "skills/skill-creator", "to": "skill-creator" },
+        { "from": "skills/mcp-builder", "to": "mcp-builder" },
+        { "from": "skills/webapp-testing", "to": "webapp-testing" }
+      ],
+      "note": "Official Anthropic skills, agent-tooling subset (document skills docx/pdf/pptx/xlsx live in the same repo if you want them manually)"
     }
   ]
 }

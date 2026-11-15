@@ -40,9 +40,9 @@ You can't police teammates' machines — you can police the repo:
 - run: npx agent-economy verify --min-level strict
 ```
 
-## Packs (v0.2 roadmap)
+## Packs
 
-Curated, attributed, pinned fetch-on-demand integrations — never vendored:
+Curated, attributed, pinned fetch-on-demand integrations - never vendored:
 
 | Pack | Source | Kind |
 |---|---|---|
@@ -50,6 +50,10 @@ Curated, attributed, pinned fetch-on-demand integrations — never vendored:
 | `matt-skills` | mattpocock/skills | engineering skills |
 | `ecc-harness` | affaan-m/ECC | harness performance patterns |
 | `anthropic-skills` | anthropics/skills | official skills |
+
+```bash
+ae packs --install ecc-harness   # → ~/.claude/skills (override with --dir)
+```
 
 ## Positioning
 
