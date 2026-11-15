@@ -5,7 +5,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execSync, spawnSync } from "node:child_process";
+import http from "node:http";
+import { execSync, spawn, spawnSync } from "node:child_process";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
@@ -86,7 +87,7 @@ const hasBin = (cmd) => {
   catch { return false; }
 };
 
-function doctor() {
+function doctorData() {
   const opencodeDir = path.join(os.homedir(), ".config", "opencode");
   const opencodeCfg = (() => { try { return fs.readFileSync(path.join(opencodeDir, "opencode.json"), "utf8"); } catch { return ""; } })();
   const goalInstalled = /goal/i.test(opencodeCfg) || ["plugin", "plugins"].some((d) => {
@@ -103,18 +104,32 @@ function doctor() {
     ["project AGENTS.md", fs.existsSync(path.resolve("AGENTS.md")), "economy init"],
     ["global AGENTS.md", fs.existsSync(globalFile()), "economy init --scope global"]
   ];
-  for (const [name, ok, hint] of rows) console.log(`  ${ok ? "✔" : "✘"} ${name}${ok ? "" : `  → ${hint}`}`);
+  return rows.map(([name, ok, hint]) => ({ name, ok, hint }));
+}
+
+function doctor() {
+  for (const r of doctorData()) console.log(`  ${r.ok ? "✔" : "✘"} ${r.name}${r.ok ? "" : `  → ${r.hint}`}`);
+}
+
+function packsData() {
+  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
+  return {
+    curated: reg.packs.filter((p) => p.status !== "stack").map((p) => ({
+      id: p.id, source: p.source, ref: p.ref || "main", status: p.status, note: p.note,
+      specs: Array.isArray(p.install) ? p.install.length : 0
+    })),
+    tools: reg.packs.filter((p) => p.status === "stack").map((p) => ({ id: p.id, source: p.source, setup: p.setup }))
+  };
 }
 
 function packs() {
-  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
+  const d = packsData();
   console.log("  Curated packs (fetch-on-demand; attribution + pinned refs):\n");
-  for (const p of reg.packs.filter((p) => p.status !== "stack"))
+  for (const p of d.curated)
     console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
-  const tools = reg.packs.filter((p) => p.status === "stack");
-  if (tools.length) {
+  if (d.tools.length) {
     console.log("\n  Stack tools (runtime — detected by `ae inventory`; ae never installs these):\n");
-    for (const p of tools) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} setup: ${p.setup}`);
+    for (const p of d.tools) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} setup: ${p.setup}`);
   }
 }
 
@@ -162,29 +177,47 @@ async function installPack(id, dir) {
   }
 }
 
-async function checkPack(id) {
+async function checkPackData(id) {
   const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
   const list = id ? reg.packs.filter((p) => p.id === id) : reg.packs.filter((p) => Array.isArray(p.install) && p.install.length);
-  if (!list.length) { console.error(id ? `  ✘ unknown pack "${id}"` : "  = no installable packs"); process.exit(id ? 2 : 0); }
+  if (!list.length) return { error: id ? `unknown pack "${id}"` : "no installable packs" };
   const work = fs.mkdtempSync(path.join(os.tmpdir(), "ae-check-"));
-  let bad = 0;
+  const results = [];
   try {
     for (const p of list) {
       const url = `https://codeload.github.com/${p.source}/tar.gz/refs/heads/${p.ref || "main"}`;
-      console.log(`  … ${p.id} (${p.source}@${p.ref || "main"})`);
-      const res = await fetch(url);
-      if (!res.ok) { console.log(`    ✘ download failed: HTTP ${res.status}`); bad++; continue; }
-      const tgz = path.join(work, `${p.id}.tgz`);
-      fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
-      const r = spawnSync("tar", ["-tzf", tgz], { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
-      if (r.status !== 0) { console.log("    ✘ tar listing failed"); bad++; continue; }
-      const files = new Set(r.stdout.split(/\r?\n/).map((f) => f.replace(/^[^/]+\//, "")));
-      const missing = p.install.filter((s) => !files.has(`${s.from}/SKILL.md`));
-      if (missing.length) { for (const s of missing) console.log(`    ✘ drift: ${s.from}/SKILL.md gone from upstream`); bad++; }
-      else console.log(`    ✔ ${p.install.length}/${p.install.length} specs present`);
+      const row = { id: p.id, source: p.source, ref: p.ref || "main", total: p.install.length, missing: [], error: null };
+      try {
+        const res = await fetch(url);
+        if (!res.ok) row.error = `download failed: HTTP ${res.status}`;
+        else {
+          const tgz = path.join(work, `${p.id}.tgz`);
+          fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
+          const r = spawnSync("tar", ["-tzf", tgz], { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
+          if (r.status !== 0) row.error = "tar listing failed";
+          else {
+            const files = new Set(r.stdout.split(/\r?\n/).map((f) => f.replace(/^[^/]+\//, "")));
+            row.missing = p.install.filter((s) => !files.has(`${s.from}/SKILL.md`)).map((s) => s.from);
+          }
+        }
+      } catch (e) { row.error = String((e && e.message) || e); }
+      results.push(row);
     }
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
+  }
+  return { results };
+}
+
+async function checkPack(id) {
+  const d = await checkPackData(id);
+  if (d.error) { console.error(`  ✘ ${d.error}`); process.exit(id ? 2 : 0); }
+  let bad = 0;
+  for (const r of d.results) {
+    console.log(`  … ${r.id} (${r.source}@${r.ref})`);
+    if (r.error) { console.log(`    ✘ ${r.error}`); bad++; continue; }
+    if (r.missing.length) { for (const m of r.missing) console.log(`    ✘ drift: ${m}/SKILL.md gone from upstream`); bad++; }
+    else console.log(`    ✔ ${r.total}/${r.total} specs present`);
   }
   console.log(bad ? `  ✘ ${bad} pack(s) drifted — update packs/registry.json` : "  = all curated install specs match upstream HEAD");
   process.exit(bad ? 1 : 0);
@@ -200,9 +233,9 @@ const pkgName = (spec) => spec.replace(/@[^/@]+$/, "");
 function rtkStatus() {
   const r = spawnSync("rtk", ["--version"], { encoding: "utf8", timeout: 5000 });
   const v = (r.stdout || "").trim().split(/\r?\n/)[0] || "";
-  if (r.error && !v) return "rtk — not found   (install: winget install rtk-ai.rtk · then: rtk init -g --opencode --hook-only --no-patch)";
-  if (!v) return "rtk — installed (version unknown)";
-  return v.startsWith("rtk") ? v : `rtk ${v}`;
+  if (r.error && !v) return { name: "rtk", ok: false, detail: "not found", hint: "winget install rtk-ai.rtk · then: rtk init -g --opencode --hook-only --no-patch" };
+  if (!v) return { name: "rtk", ok: true, detail: "installed (version unknown)", hint: null };
+  return { name: "rtk", ok: true, detail: v.startsWith("rtk") ? v.slice(4) : v, hint: null };
 }
 
 async function biliStatus() {
@@ -215,15 +248,15 @@ async function biliStatus() {
       const res = await fetch(`${inst.origin}/__bili/health`, { signal: AbortSignal.timeout(3000) });
       const h = await res.json();
       return h.ok
-        ? `billion-context v${h.version} — healthy (${inst.origin})`
-        : `billion-context — responding, not healthy (${inst.origin})`;
+        ? { name: "billion-context", ok: true, detail: `v${h.version} (${inst.origin})`, hint: null }
+        : { name: "billion-context", ok: false, detail: `responding, not healthy (${inst.origin})`, hint: null };
     } catch { /* dead instance file, try next */ }
   }
-  if (files.length) return "billion-context — proxy not responding (restart opencode to relaunch it)";
-  return "billion-context — not detected   (install: npm i -g billion-context · then: bili plugin install opencode)";
+  if (files.length) return { name: "billion-context", ok: false, detail: "proxy not responding", hint: "restart opencode to relaunch it" };
+  return { name: "billion-context", ok: false, detail: "not detected", hint: "npm i -g billion-context · then: bili plugin install opencode" };
 }
 
-async function inventory() {
+async function inventoryData() {
   const home = os.homedir();
   const oc = path.join(home, ".config", "opencode");
   const rows = [];
@@ -247,20 +280,64 @@ async function inventory() {
     else rows.push(["opencode npm cache", d]);
   }
   const seen = new Set();
-  console.log("  Token-economy stack:\n");
-  for (const line of await Promise.all([rtkStatus(), biliStatus()])) console.log(`    · ${line}`);
-  console.log("\n  Plugins / skills / MCP loaded across agents on this machine:\n");
-  let last = "";
-  let n = 0;
+  const groups = [];
   for (const [src, name] of rows) {
     const k = `${src}|${name}`;
     if (seen.has(k)) continue;
-    seen.add(k); n++;
-    if (src !== last) { console.log(`  ${src}`); last = src; }
-    const orphan = src === "opencode npm cache" && !active.has(pkgName(name));
-    console.log(`    · ${name}${orphan ? "   (not in config — orphaned)" : ""}`);
+    seen.add(k);
+    let g = groups.find((x) => x.source === src);
+    if (!g) { g = { source: src, entries: [] }; groups.push(g); }
+    g.entries.push({ name, orphan: src === "opencode npm cache" && !active.has(pkgName(name)) });
   }
-  console.log(`\n  ${n} entries · health: ae doctor · curated extras: ae packs`);
+  const stack = await Promise.all([rtkStatus(), biliStatus()]);
+  return { stack, groups, count: groups.reduce((n, g) => n + g.entries.length, 0) };
+}
+
+async function inventory() {
+  const d = await inventoryData();
+  console.log("  Token-economy stack:\n");
+  for (const s of d.stack) console.log(`    · ${s.name} — ${s.detail}${s.hint ? `   (fix: ${s.hint})` : ""}`);
+  console.log("\n  Plugins / skills / MCP loaded across agents on this machine:\n");
+  let last = "";
+  for (const g of d.groups) {
+    if (g.source !== last) { console.log(`  ${g.source}`); last = g.source; }
+    for (const e of g.entries) console.log(`    · ${e.name}${e.orphan ? "   (not in config — orphaned)" : ""}`);
+  }
+  console.log(`\n  ${d.count} entries · health: ae doctor · curated extras: ae packs`);
+}
+
+function json(res, body, code = 200) {
+  res.writeHead(code, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+function ui(port) {
+  const htmlPath = path.join(ROOT, "src", "ui.html");
+  const server = http.createServer(async (req, res) => {
+    const url = new URL(req.url, "http://127.0.0.1");
+    try {
+      if (url.pathname === "/api/doctor") return json(res, doctorData());
+      if (url.pathname === "/api/inventory") return json(res, await inventoryData());
+      if (url.pathname === "/api/packs") return json(res, packsData());
+      if (url.pathname === "/api/packs/check") return json(res, await checkPackData(url.searchParams.get("id") || undefined));
+      if (url.pathname !== "/") { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { "content-type": "text/html; charset=utf8" });
+      res.end(fs.readFileSync(htmlPath));
+    } catch (e) {
+      json(res, { error: String((e && e.message) || e) }, 500);
+    }
+  });
+  const p = Number(port) || 4747;
+  server.listen(p, "127.0.0.1", () => {
+    const addr = `http://127.0.0.1:${p}`;
+    console.log(`  ae ui → ${addr}   (Ctrl+C to stop)`);
+    if (!process.argv.includes("--no-open")) {
+      try {
+        if (process.platform === "win32") spawn("cmd", ["/c", "start", "", addr], { detached: true, stdio: "ignore" }).unref();
+        else spawn(process.platform === "darwin" ? "open" : "xdg-open", [addr], { detached: true, stdio: "ignore" }).unref();
+      } catch { /* headless — the URL is printed above */ }
+    }
+  });
 }
 
 const HELP = `
@@ -285,6 +362,8 @@ const HELP = `
                                                 (default target: ~/.claude/skills)
               --check [id]                      validate install specs against upstream HEAD
     skill     Install the agent-economy-setup skill (teaches any agent to run ae)
+    ui        Local dashboard (health, inventory, packs) in your browser
+              --port <n>   default 4747; --no-open skips launching the browser
     help      This text
 
   Every model round-trip bills one request. Batch the independent ones.
@@ -334,6 +413,7 @@ async function main() {
   if (cmd === "doctor") return doctor();
   if (cmd === "skill") return skill(get("--dir"));
   if (cmd === "inventory") return inventory();
+  if (cmd === "ui") return ui(get("--port"));
   if (cmd === "packs") {
     const cid = get("--check");
     if (hasFlag("--check")) return checkPack(cid && !cid.startsWith("--") ? cid : undefined);

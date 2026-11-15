@@ -10,6 +10,7 @@ ae init --level strict --yes  # scripted onboarding
 ae verify --min-level strict  # CI gate: exit 1 missing, 2 below level
 ae doctor                     # detect rtk / billion-context / goal plugin
 ae packs                      # curated third-party rule/skill packs
+ae ui                         # local dashboard: health, inventory, packs
 ```
 
 ### Install with your agent (no terminal needed)
@@ -23,6 +24,17 @@ After that, every future session discovers the `agent-economy-setup` skill and k
 ## Why requests, not tokens
 
 Token-compression tools (billion-context, RTK, headroom) are plentiful. **Request-economy tooling does not exist** — yet per-request metering is what actually caps free-tier sessions (measured baseline: ~7 model requests per user message in a real opencode session). Batching 3 independent calls into 1 round saves 2 requests *and* 2 round-trips of latency, every time. No plugin can force batching — call count is decided at generation time — so the prompt is the only injection point. This project owns that injection point.
+
+## The dashboard (`ae ui`)
+
+```bash
+ae ui        # → http://127.0.0.1:4747 (Ctrl+C to stop)
+```
+
+A local, read-only control room for your token-economy stack: live tool health, everything loaded across the agents on this machine (with orphan detection), and pack status — with **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
+
+![agent-economy dashboard, light](docs/ui-light.png)
+![agent-economy dashboard, dark](docs/ui-dark.png)
 
 ## Levels
 
@@ -56,7 +68,7 @@ git config core.hooksPath .githooks   # pre-commit verify (one-time per clone)
 node src/cli.js packs --check         # curated specs vs upstream HEAD (weekly in CI)
 ```
 
-Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` workflow runs the tests, then publishes to npm via **OIDC trusted publishing** (no token secret). One-time setup on npmjs.com: package → Settings → Trusted Publisher → `markymakes-dev/agent-economy` · workflow `release.yml`.
+Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` workflow runs the tests, then publishes to npm via **OIDC trusted publishing** (no token secret). One-time setup on npmjs.com: package → Settings → Trusted Publisher → `markymakes-dev/agent-economy` · workflow `release.yml`. Known upstream blocker: GitHub repos created after 2026-07-15 force immutable OIDC subject claims, which npm's token exchange rejects until [npm/cli#9969](https://github.com/npm/cli/issues/9969) is fixed — until then, publish manually from the repo root (`npm publish`).
 
 ## Packs
 
