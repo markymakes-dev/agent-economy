@@ -4,6 +4,7 @@
   "description": "Request economy for coding agents — treat every model round-trip as the billable unit. Idempotent AGENTS.md presets, tool detection, CI verify.",
   "type": "module",
   "bin": {
+    "ae": "src/cli.js",
     "economy": "src/cli.js"
   },
   "engines": {

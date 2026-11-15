@@ -3,11 +3,13 @@
 **Request economy for coding agents.** Free and metered agent tiers bill **per request** — every model round-trip costs one, no matter how small. agent-economy installs a battle-tested rule set that makes agents batch, dedupe, and finish in fewer round-trips — as an idempotent, marker-bounded block in `AGENTS.md`, the open standard every major agent already reads (opencode, Codex, Cursor, Gemini CLI, Jules, Amp, Zed).
 
 ```
-npx agent-economy init                  # interactive: level + scope
-npx agent-economy init --level strict --yes
-npx agent-economy verify --min-level strict   # CI gate: exit 1 missing, 2 below level
-npx agent-economy doctor                # detect rtk / billion-context / goal plugin
-npx agent-economy packs                 # curated third-party rule/skill packs
+npm i -g agent-economy        # once per machine (or use npx agent-economy <cmd>)
+
+ae init                       # per project: interactive level + scope
+ae init --level strict --yes  # scripted onboarding
+ae verify --min-level strict  # CI gate: exit 1 missing, 2 below level
+ae doctor                     # detect rtk / billion-context / goal plugin
+ae packs                      # curated third-party rule/skill packs
 ```
 
 ## Why requests, not tokens

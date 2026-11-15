@@ -105,7 +105,9 @@ function packs() {
 const HELP = `
   agent-economy — request economy for coding agents
 
-  Usage: economy <command> [options]
+  Usage: ae <command> [options]      (alias: economy)
+
+  One-time install:  npm i -g agent-economy        (or: npx agent-economy <cmd>)
 
   Commands:
     init      Install/update the request-economy block
