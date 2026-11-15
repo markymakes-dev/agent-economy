@@ -148,7 +148,31 @@ function listDir(p, filter) {
 
 const pkgName = (spec) => spec.replace(/@[^/@]+$/, "");
 
-function inventory() {
+function rtkStatus() {
+  const r = spawnSync("rtk", ["--version"], { encoding: "utf8", timeout: 5000 });
+  const v = (r.stdout || "").trim().split(/\r?\n/)[0] || "";
+  if (r.error && !v) return "rtk — not found";
+  if (!v) return "rtk — installed (version unknown)";
+  return v.startsWith("rtk") ? v : `rtk ${v}`;
+}
+
+async function biliStatus() {
+  const dir = path.join(os.homedir(), ".local", "state", "billion-context", "instances");
+  for (const f of listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"))) {
+    try {
+      const inst = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+      if (!inst.origin) continue;
+      const res = await fetch(`${inst.origin}/__bili/health`, { signal: AbortSignal.timeout(3000) });
+      const h = await res.json();
+      return h.ok
+        ? `billion-context v${h.version} — healthy (${inst.origin})`
+        : `billion-context — responding, not healthy (${inst.origin})`;
+    } catch { /* dead instance file, try next */ }
+  }
+  return "billion-context — installed, proxy not responding";
+}
+
+async function inventory() {
   const home = os.homedir();
   const oc = path.join(home, ".config", "opencode");
   const rows = [];
@@ -172,7 +196,9 @@ function inventory() {
     else rows.push(["opencode npm cache", d]);
   }
   const seen = new Set();
-  console.log("  Plugins / skills / MCP loaded across agents on this machine:\n");
+  console.log("  Token-economy stack:\n");
+  for (const line of await Promise.all([rtkStatus(), biliStatus()])) console.log(`    · ${line}`);
+  console.log("\n  Plugins / skills / MCP loaded across agents on this machine:\n");
   let last = "";
   let n = 0;
   for (const [src, name] of rows) {
@@ -201,7 +227,8 @@ const HELP = `
     verify    Check a file carries the block; exit 1 missing, 2 below level
               [file=AGENTS.md] --min-level standard|strict
     doctor    Detect agent tooling (rtk, billion-context, goal plugin, ...)
-    inventory List plugins/skills/MCP actually loaded on this machine
+    inventory Show the token-economy stack (rtk, billion-context) with health,
+              then every plugin/skill/MCP actually loaded on this machine
     packs     List curated third-party rule/skill packs
               --install <id> [--dir <target>]   fetch + install a curated pack
                                                 (default target: ~/.claude/skills)
