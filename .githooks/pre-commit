@@ -1,0 +1,4 @@
+#!/bin/sh
+# agent-economy: verify the managed block before every commit.
+# One-time setup after cloning: git config core.hooksPath .githooks
+node src/cli.js verify AGENTS.md --min-level strict || exit 1

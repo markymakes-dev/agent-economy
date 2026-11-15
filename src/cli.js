@@ -162,6 +162,34 @@ async function installPack(id, dir) {
   }
 }
 
+async function checkPack(id) {
+  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
+  const list = id ? reg.packs.filter((p) => p.id === id) : reg.packs.filter((p) => Array.isArray(p.install) && p.install.length);
+  if (!list.length) { console.error(id ? `  ✘ unknown pack "${id}"` : "  = no installable packs"); process.exit(id ? 2 : 0); }
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), "ae-check-"));
+  let bad = 0;
+  try {
+    for (const p of list) {
+      const url = `https://codeload.github.com/${p.source}/tar.gz/refs/heads/${p.ref || "main"}`;
+      console.log(`  … ${p.id} (${p.source}@${p.ref || "main"})`);
+      const res = await fetch(url);
+      if (!res.ok) { console.log(`    ✘ download failed: HTTP ${res.status}`); bad++; continue; }
+      const tgz = path.join(work, `${p.id}.tgz`);
+      fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
+      const r = spawnSync("tar", ["-tzf", tgz], { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
+      if (r.status !== 0) { console.log("    ✘ tar listing failed"); bad++; continue; }
+      const files = new Set(r.stdout.split(/\r?\n/).map((f) => f.replace(/^[^/]+\//, "")));
+      const missing = p.install.filter((s) => !files.has(`${s.from}/SKILL.md`));
+      if (missing.length) { for (const s of missing) console.log(`    ✘ drift: ${s.from}/SKILL.md gone from upstream`); bad++; }
+      else console.log(`    ✔ ${p.install.length}/${p.install.length} specs present`);
+    }
+  } finally {
+    fs.rmSync(work, { recursive: true, force: true });
+  }
+  console.log(bad ? `  ✘ ${bad} pack(s) drifted — update packs/registry.json` : "  = all curated install specs match upstream HEAD");
+  process.exit(bad ? 1 : 0);
+}
+
 function listDir(p, filter) {
   try { return fs.readdirSync(p, { withFileTypes: true }).filter((d) => filter(d, p)).map((d) => d.name); }
   catch { return []; }
@@ -255,6 +283,7 @@ const HELP = `
     packs     List curated third-party rule/skill packs
               --install <id> [--dir <target>]   fetch + install a curated pack
                                                 (default target: ~/.claude/skills)
+              --check [id]                      validate install specs against upstream HEAD
     skill     Install the agent-economy-setup skill (teaches any agent to run ae)
     help      This text
 
@@ -306,6 +335,8 @@ async function main() {
   if (cmd === "skill") return skill(get("--dir"));
   if (cmd === "inventory") return inventory();
   if (cmd === "packs") {
+    const cid = get("--check");
+    if (hasFlag("--check")) return checkPack(cid && !cid.startsWith("--") ? cid : undefined);
     if (get("--install")) return installPack(get("--install"), get("--dir"));
     return packs();
   }

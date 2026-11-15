@@ -48,6 +48,16 @@ You can't police teammates' machines — you can police the repo:
 - run: npx agent-economy verify --min-level strict
 ```
 
+## Development
+
+```bash
+npm test                              # hermetic node:test suite
+git config core.hooksPath .githooks   # pre-commit verify (one-time per clone)
+node src/cli.js packs --check         # curated specs vs upstream HEAD (weekly in CI)
+```
+
+Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` workflow runs the tests, then publishes to npm via **OIDC trusted publishing** (no token secret). One-time setup on npmjs.com: package → Settings → Trusted Publisher → `markymakes-dev/agent-economy` · workflow `release.yml`.
+
 ## Packs
 
 Curated, attributed, pinned fetch-on-demand integrations - never vendored:
