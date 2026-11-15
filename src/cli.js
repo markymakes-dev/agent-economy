@@ -98,7 +98,7 @@ function doctor() {
 
 function packs() {
   const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
-  console.log("  Curated packs (fetch-on-demand in v0.2; attribution + pinned refs):\n");
+  console.log("  Curated packs (fetch-on-demand; attribution + pinned refs):\n");
   for (const p of reg.packs) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
 }
 
