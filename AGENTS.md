@@ -20,3 +20,17 @@ This repo follows its own dogma — the request-economy block below is the produ
 
 - Run `node src/cli.js verify` before committing — a release that fails its own check is not a release.
 - The CLI must stay dependency-free (Node stdlib only); packs are fetched on demand, never vendored.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `markymakes-dev/agent-economy` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` at the root + `docs/adr/` (created lazily by `/domain-modeling`). See `docs/agents/domain.md`.
