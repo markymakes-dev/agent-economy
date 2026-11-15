@@ -14,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # No registry-url: setup-node would write an .npmrc interpolating
-      # NODE_AUTH_TOKEN, and that (limited) token then overrides OIDC auth —
-      # npm authenticated as it and soft-404'd the PUT.
+      # registry-url is REQUIRED: setup-node performs the OIDC exchange and
+      # injects the short-lived npm token itself (run 43737084234 proved the
+      # PUT was authenticated — npm's 404 there was an authorization refusal,
+      # i.e. npm-side trusted-publisher config, not this workflow).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install -g npm@latest # OIDC trusted publishing needs npm >= 11.5.1
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
       - run: npm test
       - run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ""
