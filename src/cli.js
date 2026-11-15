@@ -99,13 +99,24 @@ function doctor() {
 function packs() {
   const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
   console.log("  Curated packs (fetch-on-demand; attribution + pinned refs):\n");
-  for (const p of reg.packs) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
+  for (const p of reg.packs.filter((p) => p.status !== "stack"))
+    console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
+  const tools = reg.packs.filter((p) => p.status === "stack");
+  if (tools.length) {
+    console.log("\n  Stack tools (runtime — detected by `ae inventory`; ae never installs these):\n");
+    for (const p of tools) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} setup: ${p.setup}`);
+  }
 }
 
 async function installPack(id, dir) {
   const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
   const p = reg.packs.find((x) => x.id === id);
   if (!p) { console.error(`  ✘ unknown pack "${id}"`); process.exit(2); }
+  if (p.status === "stack") {
+    console.error(`  ✘ "${id}" is a runtime tool, not a fetchable pack — ae never installs those.`);
+    console.error(`    set it up directly: ${p.setup}`);
+    process.exit(2);
+  }
   if (!Array.isArray(p.install) || !p.install.length) {
     console.error(`  ✘ pack "${id}" has no curated install spec yet (status: ${p.status})`);
     process.exit(2);

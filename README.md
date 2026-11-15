@@ -55,6 +55,8 @@ Curated, attributed, pinned fetch-on-demand integrations - never vendored:
 ae packs --install ecc-harness   # → ~/.claude/skills (override with --dir)
 ```
 
+RTK and billion-context are **runtime tools**, not packs — `ae packs` prints their setup commands, `ae inventory` shows whether they're alive. `ae` never installs them for you.
+
 ## Positioning
 
 Token compressors optimize **bytes**; this optimizes **round-trips**. Different unit, different layer, complementary stack. The dedicated AGENTS.md-template niche is empty (existing repos: 6–41★) while the adjacent skills ecosystem measures in six figures — the lane is open.

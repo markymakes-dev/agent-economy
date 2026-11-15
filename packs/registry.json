@@ -54,6 +54,22 @@
         { "from": "skills/webapp-testing", "to": "webapp-testing" }
       ],
       "note": "Official Anthropic skills, agent-tooling subset (document skills docx/pdf/pptx/xlsx live in the same repo if you want them manually)"
+    },
+    {
+      "id": "rtk",
+      "source": "rtk-ai/rtk",
+      "kind": "tool",
+      "status": "stack",
+      "setup": "winget install rtk-ai.rtk · then: rtk init -g --opencode --hook-only --no-patch",
+      "note": "Command rewriter — cuts agent tool output at the source (100+ per-command filters, fail-open)"
+    },
+    {
+      "id": "billion-context",
+      "source": "ranxianglei/billion-context",
+      "kind": "tool",
+      "status": "stack",
+      "setup": "npm i -g billion-context · then: bili plugin install opencode",
+      "note": "Context-compression proxy for agent sessions — folds stale context out of every request"
     }
   ]
 }
