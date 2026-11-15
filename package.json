@@ -1,0 +1,27 @@
+{
+  "name": "agent-economy",
+  "version": "0.1.0",
+  "description": "Request economy for coding agents — treat every model round-trip as the billable unit. Idempotent AGENTS.md presets, tool detection, CI verify.",
+  "type": "module",
+  "bin": {
+    "economy": "src/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "agents-md",
+    "opencode",
+    "codex",
+    "cursor",
+    "claude-code",
+    "request-economy",
+    "token-savings",
+    "ai-agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOURORG/agent-economy.git"
+  }
+}

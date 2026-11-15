@@ -1,0 +1,32 @@
+{
+  "packs": [
+    {
+      "id": "karpathy-rules",
+      "source": "multica-ai/andrej-karpathy-skills",
+      "kind": "rules",
+      "status": "planned",
+      "note": "Behavior rules distilled from Karpathy's LLM coding-pitfall observations"
+    },
+    {
+      "id": "matt-skills",
+      "source": "mattpocock/skills",
+      "kind": "skills",
+      "status": "planned",
+      "note": "Matt Pocock's .agents directory — engineering skills for real codebases"
+    },
+    {
+      "id": "ecc-harness",
+      "source": "affaan-m/ECC",
+      "kind": "harness",
+      "status": "planned",
+      "note": "Agent-harness performance patterns: skills, instincts, memory, security"
+    },
+    {
+      "id": "anthropic-skills",
+      "source": "anthropics/skills",
+      "kind": "skills",
+      "status": "planned",
+      "note": "Official Anthropic agent skills"
+    }
+  ]
+}
