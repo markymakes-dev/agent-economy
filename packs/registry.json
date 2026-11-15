@@ -34,13 +34,12 @@
       "kind": "harness",
       "status": "curated",
       "install": [
-        { "from": ".agents/skills/strategic-compact", "to": "strategic-compact" },
         { "from": ".agents/skills/verification-loop", "to": "verification-loop" },
         { "from": ".agents/skills/change-impact", "to": "change-impact" },
         { "from": ".agents/skills/coding-standards", "to": "coding-standards" },
         { "from": ".agents/skills/security-review", "to": "security-review" }
       ],
-      "note": "Request-economy-relevant subset of ECC's harness skills (strategic-compact alone earns the install); ECC-specific skills like ecc-conventions deliberately excluded"
+      "note": "Request-economy-relevant subset of ECC's harness skills. strategic-compact excluded: it pushes manual /compact at token thresholds, which conflicts with proxy-based compaction (billion-context) that owns the compaction lane. ECC-specific skills like ecc-conventions deliberately excluded"
     },
     {
       "id": "anthropic-skills",
