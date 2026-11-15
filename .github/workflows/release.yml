@@ -27,4 +27,4 @@ jobs:
       - run: npm publish --provenance
       - name: dump npm debug log (404 forensics)
         if: failure()
-        run: tail -n 80 $HOME/.npm/_logs/*-debug-0.log || true
+        run: tail -n 100 "$(ls -t $HOME/.npm/_logs/*-debug-0.log | head -1)" || true
