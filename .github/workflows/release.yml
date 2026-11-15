@@ -19,4 +19,8 @@ jobs:
           node-version: 24 # npm >=11.5 ships OIDC trusted publishing
           registry-url: https://registry.npmjs.org
       - run: npm test
+      # Blank the token env that setup-node leaves in the job environment —
+      # a stale/limited token overrides OIDC and npm soft-404s the PUT.
       - run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ""
