@@ -8,9 +8,8 @@ npm i -g agent-economy        # once per machine (or use npx agent-economy <cmd>
 ae init                       # per project: interactive level + scope
 ae init --level strict --yes  # scripted onboarding
 ae verify --min-level strict  # CI gate: exit 1 missing, 2 below level
-ae doctor                     # detect rtk / billion-context / goal plugin
-ae packs                      # curated third-party rule/skill packs
-ae ui                         # local dashboard: health, inventory, packs
+ae doctor                     # stack (rtk / billion-context, with live health) + setup checks
+ae ui                         # local dashboard: health + impact
 ```
 
 ### Install with your agent (no terminal needed)
@@ -31,7 +30,7 @@ Token-compression tools (billion-context, RTK, headroom) are plentiful. **Reques
 ae ui        # → http://127.0.0.1:4747 (Ctrl+C to stop)
 ```
 
-A local, read-only control room for your token-economy stack: live tool health, everything loaded across the agents on this machine (with orphan detection), pack status, and **Impact** — real savings counters read from the stack itself (`rtk gain --format json`, the billion-context proxy's `/__bili/stats`): commands filtered, tokens saved, requests served, cache-hit %. With **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
+A local, read-only control room for your token-economy stack: live tool health, and **Impact** — real savings counters read from the stack itself (`rtk gain --format json`, the billion-context proxy's `/__bili/stats`): commands filtered, tokens saved, requests served, cache-hit %. With **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
 
 ![agent-economy dashboard, light](docs/ui-light.png)
 ![agent-economy dashboard, dark](docs/ui-dark.png)
@@ -65,27 +64,13 @@ You can't police teammates' machines — you can police the repo:
 ```bash
 npm test                              # hermetic node:test suite
 git config core.hooksPath .githooks   # pre-commit verify (one-time per clone)
-node src/cli.js packs --check         # curated specs vs upstream HEAD (weekly in CI)
 ```
 
 Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` workflow runs the tests, then publishes to npm via **OIDC trusted publishing** (no token secret). One-time setup on npmjs.com: package → Settings → Trusted Publisher → `markymakes-dev/agent-economy` · workflow `release.yml`. Known upstream blocker: GitHub repos created after 2026-07-15 force immutable OIDC subject claims, which npm's token exchange rejects until [npm/cli#9969](https://github.com/npm/cli/issues/9969) is fixed — until then, publish manually from the repo root (`npm publish`).
 
-## Packs
+## Scope
 
-Curated, attributed, pinned fetch-on-demand integrations - never vendored:
-
-| Pack | Source | Kind |
-|---|---|---|
-| `karpathy-rules` | multica-ai/andrej-karpathy-skills | behavior rules |
-| `matt-skills` | mattpocock/skills | engineering skills |
-| `ecc-harness` | affaan-m/ECC | harness performance patterns |
-| `anthropic-skills` | anthropics/skills | official skills |
-
-```bash
-ae packs --install ecc-harness   # → ~/.claude/skills (override with --dir)
-```
-
-RTK and billion-context are **runtime tools**, not packs — `ae packs` prints their setup commands, `ae inventory` shows whether they're alive. `ae` never installs them for you.
+agent-economy deliberately does **one thing**: manage the request-economy rules as an artifact and prove their effect. It does not curate or install third-party skills (use `npx skills add <repo>` for that), and it does not inventory your agent config. RTK and billion-context are **runtime tools**, not content — `ae doctor` shows whether they're alive and prints their setup commands; `ae` never installs them for you (see [ADR-0001](docs/adr/0001-rules-artifact-only.md)).
 
 ## Positioning
 

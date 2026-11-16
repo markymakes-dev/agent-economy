@@ -19,7 +19,7 @@ This repo follows its own dogma — the request-economy block below is the produ
 ## Project rules
 
 - Run `node src/cli.js verify` before committing — a release that fails its own check is not a release.
-- The CLI must stay dependency-free (Node stdlib only); packs are fetched on demand, never vendored.
+- The CLI must stay dependency-free (Node stdlib only).
 
 ## Agent skills
 

@@ -281,9 +281,7 @@
     <div class="wordmark">agent-<span>economy</span></div>
     <nav class="nav" aria-label="Sections">
       <button type="button" class="nav-item is-active" data-view="health" aria-current="page">Health</button>
-      <button type="button" class="nav-item" data-view="inventory">Inventory</button>
       <button type="button" class="nav-item" data-view="impact">Impact</button>
-      <button type="button" class="nav-item" data-view="packs">Packs</button>
     </nav>
     <p class="side-foot">Every model round-trip bills one request. Batch the independent ones.</p>
   </aside>
@@ -303,9 +301,7 @@ const main = $("#main");
 
 const SUBTITLES = {
   health: "Live status of the token-economy stack, plus setup checks for this machine.",
-  inventory: "Plugins, MCP servers, commands and skills discovered across the agents on this machine.",
-  impact: "What the stack actually saved on this machine — requests, tokens, cache hit rate. The tools keep the numbers; ae only reads them.",
-  packs: "Curated skill packs fetched on demand with pinned refs and attribution. Stack tools are detected, never installed."
+  impact: "What the stack actually saved on this machine — requests, tokens, cache hit rate. The tools keep the numbers; ae only reads them."
 };
 
 /* ---------- tiny DOM helpers (no innerHTML — untrusted data stays text) ---------- */
@@ -365,9 +361,11 @@ function group(title, ...body) {
 
 /* ---------- views ---------- */
 async function renderHealth(mount, retry) {
-  const [inv, doc] = await Promise.all([load("inventory", "/api/inventory"), load("doctor", "/api/doctor")]);
+  const doc = await load("doctor", "/api/doctor");
+  const stack = doc.filter((r) => r.detail !== undefined);
+  const checks = doc.filter((r) => r.detail === undefined);
   const stackCard = el("div", { class: "card" });
-  for (const s of inv.stack) {
+  for (const s of stack) {
     const row = el("div", { class: "stat-row" },
       el("span", { class: "stat-name", text: s.name }),
       el("span", { class: "stat-detail", text: s.detail }),
@@ -382,7 +380,7 @@ async function renderHealth(mount, retry) {
         el("th", { scope: "col", text: "State" }),
         el("th", { scope: "col", text: "Remedy" }))),
       el("tbody", {},
-        ...doc.map((r) => el("tr", {},
+        ...checks.map((r) => el("tr", {},
           el("td", { text: r.name }),
           el("td", {}, chip(r.ok ? "ok" : "warn", r.ok ? "present" : "missing")),
           el("td", {}, r.ok ? "—" : copyCmd(r.hint, r.name)))))));
@@ -392,90 +390,6 @@ async function renderHealth(mount, retry) {
     group("Setup checks", checksTable,
       el("p", { class: "note", text: "Files and tools the request-economy rules assume. Run the remedy to fix a missing row." })));
 }
-async function renderInventory(mount, retry) {
-  const inv = await load("inventory", "/api/inventory");
-  const orphans = inv.groups.flatMap((g) => g.entries).filter((e) => e.orphan).length;
-  const parts = [];
-  const summary = el("p", { class: "note", style: "margin:0 0 1.25rem" },
-    `${inv.count} entries across ${inv.groups.length} sources` + (orphans ? ` — ${orphans} orphaned` : ""));
-  summary.style.fontVariantNumeric = "tabular-nums";
-  parts.push(summary);
-  for (const g of inv.groups) {
-    const tbody = el("tbody", {});
-    for (const e of g.entries) {
-      tbody.append(el("tr", {},
-        el("td", { text: e.name }),
-        el("td", {}, e.orphan ? chip("warn", "orphaned") : el("span", { text: "—" }))));
-    }
-    parts.push(group(g.source, el("div", { class: "table-wrap card" },
-      el("table", {},
-        el("thead", {}, el("tr", {},
-          el("th", { scope: "col", text: "Name" }),
-          el("th", { scope: "col", text: "Status" }))),
-        tbody))));
-  }
-  mount.replaceChildren(...parts);
-}
-async function renderPacks(mount, retry) {
-  const packs = await load("packs", "/api/packs");
-  const tbody = el("tbody", {});
-  for (const p of packs.curated) {
-    const statusCell = el("td", {}, el("span", { class: "note", text: "not checked" }));
-    const installCmd = `npx agent-economy packs --install ${p.id}`;
-    const row = el("tr", {},
-      el("td", { text: p.id }),
-      el("td", { class: "cmds", text: p.source }),
-      el("td", { class: "num", text: String(p.specs) }),
-      statusCell,
-      el("td", {}, copyCmd(installCmd, p.id)));
-    tbody.append(row);
-  }
-  const curatedTable = el("div", { class: "table-wrap card" },
-    el("table", {},
-      el("thead", {}, el("tr", {},
-        el("th", { scope: "col", text: "Pack" }),
-        el("th", { scope: "col", text: "Source" }),
-        el("th", { scope: "col", text: "Skills", class: "num" }),
-        el("th", { scope: "col", text: "Upstream check" }),
-        el("th", { scope: "col", text: "Install" }))),
-      tbody));
-  const toolsCard = el("div", { class: "card" });
-  for (const t of packs.tools) {
-    toolsCard.append(el("div", { class: "stat-row" },
-      el("span", { class: "stat-name", text: t.id }),
-      el("span", { class: "cmds", text: t.source }),
-      el("span", { class: "stat-fix" }, copyCmd(t.setup, t.id))));
-  }
-  mount.replaceChildren(
-    group("Curated packs", curatedTable,
-      el("p", { class: "note", text: "Upstream check downloads the pack tarball and compares the pinned install specs against it — read-only, nothing is installed." })),
-    group("Stack tools", toolsCard,
-      el("p", { class: "note", text: "Runtime tools with a trust boundary (command rewriting, traffic proxying). Set them up yourself; ae only detects them." })));
-  const checkOnce = {};
-  for (const [i, p] of packs.curated.entries()) {
-    const b = el("button", { class: "btn small", type: "button", text: "Verify specs" });
-    const statusCell = tbody.children[i].children[3];
-    statusCell.replaceChildren(b);
-    b.addEventListener("click", async () => {
-      b.disabled = true;
-      statusCell.replaceChildren(chip("wait", "checking…"));
-      try {
-        if (!checkOnce[p.id]) checkOnce[p.id] = getJSON(`/api/packs/check?id=${encodeURIComponent(p.id)}`);
-        const d = await checkOnce[p.id];
-        const r = d.results && d.results[0];
-        if (!r) throw new Error(d.error || "empty result");
-        if (r.error) statusCell.replaceChildren(chip("bad", r.error));
-        else if (r.missing.length) statusCell.replaceChildren(chip("bad", "drift"), el("div", { class: "note", text: `missing upstream: ${r.missing.join(", ")}` }));
-        else statusCell.replaceChildren(chip("ok", `${r.total}/${r.total} specs`));
-      } catch (e) {
-        statusCell.replaceChildren(chip("bad", "check failed"), el("div", { class: "note", text: String(e.message || e) }));
-        delete checkOnce[p.id];
-        b.disabled = false;
-      }
-    });
-  }
-}
-
 function fmt(n) {
   if (!Number.isFinite(n)) return "—";
   const a = Math.abs(n);
@@ -526,7 +440,7 @@ async function renderImpact(mount, retry) {
   mount.replaceChildren(...parts);
 }
 
-const RENDER = { health: renderHealth, inventory: renderInventory, impact: renderImpact, packs: renderPacks };
+const RENDER = { health: renderHealth, impact: renderImpact };
 
 async function show(view) {
   for (const b of document.querySelectorAll(".nav-item")) {

@@ -12,9 +12,7 @@ Free and metered agent tiers bill **per request** — every model round-trip cos
 
 - `ae init [--level off|standard|strict] [--scope project|global|both] [--yes]` — install/update the rules block (interactive unless `--yes`)
 - `ae verify [file] [--min-level standard|strict]` — check the block; exit 0 ok, 1 missing, 2 below level (this is the CI gate)
-- `ae doctor` — detect companion tooling (rtk, billion-context, goal plugin)
-- `ae inventory` — list the token-economy stack (with live health) + all loaded plugins/skills/MCP
-- `ae packs` / `ae packs --install <id>` — curated third-party rule/skill packs (fetch-on-demand, attributed)
+- `ae doctor` — detect the stack (rtk, billion-context, with live health) + setup checks
 - `ae skill` — (re)install this skill
 
 ## Installing for a user
@@ -22,7 +20,8 @@ Free and metered agent tiers bill **per request** — every model round-trip cos
 1. Run `npx -y agent-economy@latest init --level standard --yes` (project scope). Use `--level strict` when the user wants maximum savings; `--scope global` writes `~/.config/opencode/AGENTS.md`.
 2. Run `npx -y agent-economy@latest skill` so future sessions can manage the setup themselves.
 3. Run `npx -y agent-economy@latest doctor` and report the results.
-4. Optional: `npx -y agent-economy@latest packs --install karpathy-rules` (behavior rules). NEVER install stack tools (`rtk`, `billion-context`) without asking — they change runtime behavior, not content.
+
+ae does not install third-party skills or stack tools. NEVER install stack tools (`rtk`, `billion-context`) without asking — they change runtime behavior, not content; `ae doctor` prints their setup commands when missing.
 
 ## Guardrails
 

@@ -57,12 +57,12 @@ test("help exits 0 and lists every command", () => {
   const r = run(["help"], os.tmpdir());
   assert.equal(r.status, 0);
   assert.match(r.stdout, /ae <command>/);
-  for (const c of ["init", "verify", "doctor", "inventory", "packs", "skill"]) assert.match(r.stdout, new RegExp(c));
+  for (const c of ["init", "verify", "doctor", "skill", "ui"]) assert.match(r.stdout, new RegExp(c));
 });
 
-test("packs lists curated registry entries", () => {
-  const r = run(["packs"], os.tmpdir());
+test("doctor exits 0 and reports the stack", () => {
+  const r = run(["doctor"], os.tmpdir());
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /karpathy-rules/);
-  assert.match(r.stdout, /ecc-harness/);
+  assert.match(r.stdout, /rtk/);
+  assert.match(r.stdout, /billion-context/);
 });

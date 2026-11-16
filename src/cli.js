@@ -87,7 +87,7 @@ const hasBin = (cmd) => {
   catch { return false; }
 };
 
-function doctorData() {
+async function doctorData() {
   const opencodeDir = path.join(os.homedir(), ".config", "opencode");
   const opencodeCfg = (() => { try { return fs.readFileSync(path.join(opencodeDir, "opencode.json"), "utf8"); } catch { return ""; } })();
   const goalInstalled = /goal/i.test(opencodeCfg) || ["plugin", "plugins"].some((d) => {
@@ -96,139 +96,29 @@ function doctorData() {
         /goal/i.test(f) || /goal/i.test(fs.readFileSync(path.join(opencodeDir, d, f), "utf8")));
     } catch { return false; }
   });
+  const stack = [
+    { ...(await rtkStatus()), name: "rtk (output filter)" },
+    { ...(await biliStatus()), name: "billion-context (context folds)" }
+  ];
   const rows = [
-    ["rtk (output filter)", hasBin("rtk"), "winget install rtk-ai.rtk"],
-    ["billion-context (context folds)", hasBin("bili") || fs.existsSync(path.join(os.homedir(), ".local", "bili.cmd")), "npm install -g billion-context --prefix=~/.local && bili plugin install opencode"],
+    ...stack,
     ["opencode CLI", hasBin("opencode"), "opencode.ai"],
     ["/goal (opencode command)", goalInstalled || hasBin("opencode"), "built into opencode 2.x — else install prevalentWare/opencode-goal-plugin"],
     ["project AGENTS.md", fs.existsSync(path.resolve("AGENTS.md")), "economy init"],
     ["global AGENTS.md", fs.existsSync(globalFile()), "economy init --scope global"]
-  ];
-  return rows.map(([name, ok, hint]) => ({ name, ok, hint }));
+  ].map((r) => Array.isArray(r) ? ({ name: r[0], ok: r[1], hint: r[2] }) : r);
+  return rows;
 }
 
-function doctor() {
-  for (const r of doctorData()) console.log(`  ${r.ok ? "✔" : "✘"} ${r.name}${r.ok ? "" : `  → ${r.hint}`}`);
-}
-
-function packsData() {
-  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
-  return {
-    curated: reg.packs.filter((p) => p.status !== "stack").map((p) => ({
-      id: p.id, source: p.source, ref: p.ref || "main", status: p.status, note: p.note,
-      specs: Array.isArray(p.install) ? p.install.length : 0
-    })),
-    tools: reg.packs.filter((p) => p.status === "stack").map((p) => ({ id: p.id, source: p.source, setup: p.setup }))
-  };
-}
-
-function packs() {
-  const d = packsData();
-  console.log("  Curated packs (fetch-on-demand; attribution + pinned refs):\n");
-  for (const p of d.curated)
-    console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} [${p.status}] ${p.note}`);
-  if (d.tools.length) {
-    console.log("\n  Stack tools (runtime — detected by `ae inventory`; ae never installs these):\n");
-    for (const p of d.tools) console.log(`  ${p.id.padEnd(18)} ${p.source.padEnd(38)} setup: ${p.setup}`);
-  }
-}
-
-async function installPack(id, dir) {
-  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
-  const p = reg.packs.find((x) => x.id === id);
-  if (!p) { console.error(`  ✘ unknown pack "${id}"`); process.exit(2); }
-  if (p.status === "stack") {
-    console.error(`  ✘ "${id}" is a runtime tool, not a fetchable pack — ae never installs those.`);
-    console.error(`    set it up directly: ${p.setup}`);
-    process.exit(2);
-  }
-  if (!Array.isArray(p.install) || !p.install.length) {
-    console.error(`  ✘ pack "${id}" has no curated install spec yet (status: ${p.status})`);
-    process.exit(2);
-  }
-  const target = path.resolve(dir || path.join(os.homedir(), ".claude", "skills"));
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), "ae-pack-"));
-  try {
-    const url = `https://codeload.github.com/${p.source}/tar.gz/refs/heads/${p.ref || "main"}`;
-    console.log(`  ↓ ${url}`);
-    const res = await fetch(url);
-    if (!res.ok) { console.error(`  ✘ download failed: HTTP ${res.status}`); process.exit(2); }
-    const tgz = path.join(work, "pack.tgz");
-    fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
-    const root = path.join(work, "x");
-    fs.mkdirSync(root, { recursive: true });
-    const r = spawnSync("tar", ["-xzf", tgz, "-C", root]);
-    if (r.status !== 0) { console.error("  ✘ untar failed (is tar available?)"); process.exit(2); }
-    const base = path.join(root, fs.readdirSync(root)[0]);
-    fs.mkdirSync(target, { recursive: true });
-    for (const spec of p.install) {
-      const from = path.join(base, spec.from);
-      const to = path.join(target, spec.to);
-      if (!fs.existsSync(from)) { console.error(`  ✘ missing in pack: ${spec.from}`); process.exit(2); }
-      fs.cpSync(from, to, { recursive: true });
-      console.log(`  ✔ ${spec.from} → ${to}`);
-    }
-    const attr = path.join(target, `${p.id}.ATTRIBUTION.md`);
-    fs.writeFileSync(attr, `# ${p.id}\n\nSource: https://github.com/${p.source} (ref ${p.ref || "main"})\nInstalled by agent-economy on ${new Date().toISOString()}\nLicense: see the pack repository.\n`);
-    console.log(`  ✔ attribution → ${attr}`);
-    console.log(`  = done: ${p.id} installed to ${target}`);
-  } finally {
-    fs.rmSync(work, { recursive: true, force: true });
-  }
-}
-
-async function checkPackData(id) {
-  const reg = JSON.parse(fs.readFileSync(path.join(ROOT, "packs", "registry.json"), "utf8"));
-  const list = id ? reg.packs.filter((p) => p.id === id) : reg.packs.filter((p) => Array.isArray(p.install) && p.install.length);
-  if (!list.length) return { error: id ? `unknown pack "${id}"` : "no installable packs" };
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), "ae-check-"));
-  const results = [];
-  try {
-    for (const p of list) {
-      const url = `https://codeload.github.com/${p.source}/tar.gz/refs/heads/${p.ref || "main"}`;
-      const row = { id: p.id, source: p.source, ref: p.ref || "main", total: p.install.length, missing: [], error: null };
-      try {
-        const res = await fetch(url);
-        if (!res.ok) row.error = `download failed: HTTP ${res.status}`;
-        else {
-          const tgz = path.join(work, `${p.id}.tgz`);
-          fs.writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
-          const r = spawnSync("tar", ["-tzf", tgz], { encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
-          if (r.status !== 0) row.error = "tar listing failed";
-          else {
-            const files = new Set(r.stdout.split(/\r?\n/).map((f) => f.replace(/^[^/]+\//, "")));
-            row.missing = p.install.filter((s) => !files.has(`${s.from}/SKILL.md`)).map((s) => s.from);
-          }
-        }
-      } catch (e) { row.error = String((e && e.message) || e); }
-      results.push(row);
-    }
-  } finally {
-    fs.rmSync(work, { recursive: true, force: true });
-  }
-  return { results };
-}
-
-async function checkPack(id) {
-  const d = await checkPackData(id);
-  if (d.error) { console.error(`  ✘ ${d.error}`); process.exit(id ? 2 : 0); }
-  let bad = 0;
-  for (const r of d.results) {
-    console.log(`  … ${r.id} (${r.source}@${r.ref})`);
-    if (r.error) { console.log(`    ✘ ${r.error}`); bad++; continue; }
-    if (r.missing.length) { for (const m of r.missing) console.log(`    ✘ drift: ${m}/SKILL.md gone from upstream`); bad++; }
-    else console.log(`    ✔ ${r.total}/${r.total} specs present`);
-  }
-  console.log(bad ? `  ✘ ${bad} pack(s) drifted — update packs/registry.json` : "  = all curated install specs match upstream HEAD");
-  process.exit(bad ? 1 : 0);
+async function doctor() {
+  for (const r of await doctorData())
+    console.log(`  ${r.ok ? "✔" : "✘"} ${r.name}${r.detail ? ` — ${r.detail}` : ""}${r.ok ? "" : `  → ${r.hint}`}`);
 }
 
 function listDir(p, filter) {
   try { return fs.readdirSync(p, { withFileTypes: true }).filter((d) => filter(d, p)).map((d) => d.name); }
   catch { return []; }
 }
-
-const pkgName = (spec) => spec.replace(/@[^/@]+$/, "");
 
 function rtkStatus() {
   const r = spawnSync("rtk", ["--version"], { encoding: "utf8", timeout: 5000 });
@@ -254,56 +144,6 @@ async function biliStatus() {
   }
   if (files.length) return { name: "billion-context", ok: false, detail: "proxy not responding", hint: "restart opencode to relaunch it" };
   return { name: "billion-context", ok: false, detail: "not detected", hint: "npm i -g billion-context · then: bili plugin install opencode" };
-}
-
-async function inventoryData() {
-  const home = os.homedir();
-  const oc = path.join(home, ".config", "opencode");
-  const rows = [];
-  let active = new Set();
-  try {
-    const j = JSON.parse(fs.readFileSync(path.join(oc, "opencode.json"), "utf8"));
-    for (const p of j.plugin || []) { rows.push(["opencode plugin (config)", p]); active.add(pkgName(p)); }
-    for (const m of Object.keys(j.mcp || {})) rows.push(["opencode mcp", m]);
-  } catch {}
-  for (const f of listDir(path.join(oc, "plugins"), (d) => d.isFile())) rows.push(["opencode plugin (file)", f]);
-  for (const f of listDir(path.join(oc, "command"), (d) => d.isFile())) rows.push(["opencode command", f]);
-  for (const dir of [
-    path.join(oc, "skill"), path.join(oc, "skills"),
-    path.resolve(".opencode", "skill"), path.resolve(".opencode", "skills"),
-    path.join(home, ".claude", "skills")
-  ]) for (const d of listDir(dir, (e) => e.isDirectory())) rows.push([`skills  ${dir.replace(home, "~")}`, d]);
-  for (const d of listDir(path.join(home, ".claude", "plugins"), (e) => e.isDirectory())) rows.push(["claude plugin", d]);
-  const cache = path.join(home, ".cache", "opencode", "npm");
-  for (const d of listDir(cache, (e) => e.isDirectory())) {
-    if (d.startsWith("@")) for (const c of listDir(path.join(cache, d), (e) => e.isDirectory())) rows.push(["opencode npm cache", `${d}/${c}`]);
-    else rows.push(["opencode npm cache", d]);
-  }
-  const seen = new Set();
-  const groups = [];
-  for (const [src, name] of rows) {
-    const k = `${src}|${name}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    let g = groups.find((x) => x.source === src);
-    if (!g) { g = { source: src, entries: [] }; groups.push(g); }
-    g.entries.push({ name, orphan: src === "opencode npm cache" && !active.has(pkgName(name)) });
-  }
-  const stack = await Promise.all([rtkStatus(), biliStatus()]);
-  return { stack, groups, count: groups.reduce((n, g) => n + g.entries.length, 0) };
-}
-
-async function inventory() {
-  const d = await inventoryData();
-  console.log("  Token-economy stack:\n");
-  for (const s of d.stack) console.log(`    · ${s.name} — ${s.detail}${s.hint ? `   (fix: ${s.hint})` : ""}`);
-  console.log("\n  Plugins / skills / MCP loaded across agents on this machine:\n");
-  let last = "";
-  for (const g of d.groups) {
-    if (g.source !== last) { console.log(`  ${g.source}`); last = g.source; }
-    for (const e of g.entries) console.log(`    · ${e.name}${e.orphan ? "   (not in config — orphaned)" : ""}`);
-  }
-  console.log(`\n  ${d.count} entries · health: ae doctor · curated extras: ae packs`);
 }
 
 async function impactData() {
@@ -341,10 +181,7 @@ function ui(port) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
     try {
-      if (url.pathname === "/api/doctor") return json(res, doctorData());
-      if (url.pathname === "/api/inventory") return json(res, await inventoryData());
-      if (url.pathname === "/api/packs") return json(res, packsData());
-      if (url.pathname === "/api/packs/check") return json(res, await checkPackData(url.searchParams.get("id") || undefined));
+      if (url.pathname === "/api/doctor") return json(res, await doctorData());
       if (url.pathname === "/api/impact") return json(res, await impactData());
       if (url.pathname !== "/") { res.writeHead(404); return res.end(); }
       res.writeHead(200, { "content-type": "text/html; charset=utf8" });
@@ -380,15 +217,10 @@ const HELP = `
               --yes                         non-interactive defaults
     verify    Check a file carries the block; exit 1 missing, 2 below level
               [file=AGENTS.md] --min-level standard|strict
-    doctor    Detect agent tooling (rtk, billion-context, goal plugin, ...)
-    inventory Show the token-economy stack (rtk, billion-context) with health,
-              then every plugin/skill/MCP actually loaded on this machine
-    packs     List curated third-party rule/skill packs
-              --install <id> [--dir <target>]   fetch + install a curated pack
-                                                (default target: ~/.claude/skills)
-              --check [id]                      validate install specs against upstream HEAD
+    doctor    Detect the stack (rtk, billion-context — with live health) and
+              the files the rules assume (AGENTS.md, goal command)
     skill     Install the agent-economy-setup skill (teaches any agent to run ae)
-    ui        Local dashboard (health, inventory, impact, packs) in your browser
+    ui        Local dashboard (health, impact) in your browser
               --port <n>   default 4747; --no-open skips launching the browser
     help      This text
 
@@ -438,14 +270,7 @@ async function main() {
 
   if (cmd === "doctor") return doctor();
   if (cmd === "skill") return skill(get("--dir"));
-  if (cmd === "inventory") return inventory();
   if (cmd === "ui") return ui(get("--port"));
-  if (cmd === "packs") {
-    const cid = get("--check");
-    if (hasFlag("--check")) return checkPack(cid && !cid.startsWith("--") ? cid : undefined);
-    if (get("--install")) return installPack(get("--install"), get("--dir"));
-    return packs();
-  }
   console.log(HELP);
 }
 
