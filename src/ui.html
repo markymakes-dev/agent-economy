@@ -282,6 +282,7 @@
     <nav class="nav" aria-label="Sections">
       <button type="button" class="nav-item is-active" data-view="health" aria-current="page">Health</button>
       <button type="button" class="nav-item" data-view="inventory">Inventory</button>
+      <button type="button" class="nav-item" data-view="impact">Impact</button>
       <button type="button" class="nav-item" data-view="packs">Packs</button>
     </nav>
     <p class="side-foot">Every model round-trip bills one request. Batch the independent ones.</p>
@@ -303,6 +304,7 @@ const main = $("#main");
 const SUBTITLES = {
   health: "Live status of the token-economy stack, plus setup checks for this machine.",
   inventory: "Plugins, MCP servers, commands and skills discovered across the agents on this machine.",
+  impact: "What the stack actually saved on this machine — requests, tokens, cache hit rate. The tools keep the numbers; ae only reads them.",
   packs: "Curated skill packs fetched on demand with pinned refs and attribution. Stack tools are detected, never installed."
 };
 
@@ -474,7 +476,57 @@ async function renderPacks(mount, retry) {
   }
 }
 
-const RENDER = { health: renderHealth, inventory: renderInventory, packs: renderPacks };
+function fmt(n) {
+  if (!Number.isFinite(n)) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return String(n);
+}
+function numTable(rows) {
+  return el("div", { class: "table-wrap card" },
+    el("table", {},
+      el("thead", {}, el("tr", {},
+        el("th", { scope: "col", text: "Metric" }),
+        el("th", { scope: "col", text: "Value", class: "num" }))),
+      el("tbody", {}, ...rows.map(([m, v]) => el("tr", {},
+        el("td", { text: m }), el("td", { class: "num", text: v }))))));
+}
+async function renderImpact(mount, retry) {
+  const d = await load("impact", "/api/impact");
+  const parts = [];
+  if (d.rtk) {
+    parts.push(group("rtk — shell output filter", numTable([
+      ["Commands filtered", fmt(d.rtk.total_commands)],
+      ["Tokens in → out", `${fmt(d.rtk.total_input)} → ${fmt(d.rtk.total_output)}`],
+      ["Tokens saved", fmt(d.rtk.total_saved)],
+      ["Avg reduction", `${(d.rtk.avg_savings_pct || 0).toFixed(1)}%`]
+    ]),
+      el("p", { class: "note", text: "Live counters from `rtk gain --format json` — measured where the hook rewrote a command." })));
+  } else {
+    parts.push(group("rtk — shell output filter", el("div", { class: "empty", text: "rtk not detected — install hint on the Health view." })));
+  }
+  if (d.bili.length) {
+    for (const b of d.bili) {
+      const hit = b.agg.input ? Math.round((b.agg.cached / b.agg.input) * 100) : 0;
+      parts.push(group(`billion-context — ${b.origin.replace("http://", "")}`, numTable([
+        ["Sessions proxied", fmt(b.agg.sessions)],
+        ["Model requests", fmt(b.agg.requests)],
+        ["Input tokens", fmt(b.agg.input)],
+        ["Served from cache", `${fmt(b.agg.cached)} (${hit}%)`],
+        ["Output tokens", fmt(b.agg.output)]
+      ]),
+        el("p", { class: "note", text: "Aggregated from the proxy's /__bili/stats. Cached input re-bills at ~0 — that percentage is what folds exist to grow." })));
+    }
+  } else {
+    parts.push(group("billion-context — context folds", el("div", { class: "empty", text: "No responding proxy instance found — see Health." })));
+  }
+  parts.push(el("p", { class: "note", text: "ae keeps no telemetry of its own — the artifact is a text file; there is nothing to phone home." }));
+  mount.replaceChildren(...parts);
+}
+
+const RENDER = { health: renderHealth, inventory: renderInventory, impact: renderImpact, packs: renderPacks };
 
 async function show(view) {
   for (const b of document.querySelectorAll(".nav-item")) {

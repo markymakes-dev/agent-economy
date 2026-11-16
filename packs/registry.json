@@ -50,9 +50,10 @@
       "install": [
         { "from": "skills/skill-creator", "to": "skill-creator" },
         { "from": "skills/mcp-builder", "to": "mcp-builder" },
-        { "from": "skills/webapp-testing", "to": "webapp-testing" }
+        { "from": "skills/webapp-testing", "to": "webapp-testing" },
+        { "from": "skills/frontend-design", "to": "frontend-design" }
       ],
-      "note": "Official Anthropic skills, agent-tooling subset (document skills docx/pdf/pptx/xlsx live in the same repo if you want them manually)"
+      "note": "Official Anthropic skills, agent-tooling subset (document skills docx/pdf/pptx/xlsx live in the same repo if you want them manually). frontend-design added for the ae ui dashboard build: distinctive, non-generic visual direction"
     },
     {
       "id": "rtk",

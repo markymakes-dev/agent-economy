@@ -31,7 +31,7 @@ Token-compression tools (billion-context, RTK, headroom) are plentiful. **Reques
 ae ui        # → http://127.0.0.1:4747 (Ctrl+C to stop)
 ```
 
-A local, read-only control room for your token-economy stack: live tool health, everything loaded across the agents on this machine (with orphan detection), and pack status — with **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
+A local, read-only control room for your token-economy stack: live tool health, everything loaded across the agents on this machine (with orphan detection), pack status, and **Impact** — real savings counters read from the stack itself (`rtk gain --format json`, the billion-context proxy's `/__bili/stats`): commands filtered, tokens saved, requests served, cache-hit %. With **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
 
 ![agent-economy dashboard, light](docs/ui-light.png)
 ![agent-economy dashboard, dark](docs/ui-dark.png)

@@ -306,6 +306,31 @@ async function inventory() {
   console.log(`\n  ${d.count} entries · health: ae doctor · curated extras: ae packs`);
 }
 
+async function impactData() {
+  const out = { rtk: null, bili: [] };
+  const r = spawnSync("rtk", ["gain", "--format", "json"], { encoding: "utf8", timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
+  if (r.status === 0 && r.stdout) { try { out.rtk = JSON.parse(r.stdout).summary || null; } catch { /* unparseable gain output */ } }
+  const dir = path.join(os.homedir(), ".local", "state", "billion-context", "instances");
+  for (const f of listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"))) {
+    try {
+      const inst = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
+      if (!inst.origin) continue;
+      const res = await fetch(`${inst.origin}/__bili/stats`, { signal: AbortSignal.timeout(3000) });
+      const s = await res.json();
+      const agg = { sessions: 0, requests: 0, input: 0, cached: 0, output: 0 };
+      for (const x of s.sessions || []) {
+        agg.sessions++;
+        agg.requests += x.requests || 0;
+        agg.input += x.inputTokens || 0;
+        agg.cached += x.cachedTokens || 0;
+        agg.output += x.outputTokens || 0;
+      }
+      out.bili.push({ origin: inst.origin, agg });
+    } catch { /* instance file dead or proxy busy — skip */ }
+  }
+  return out;
+}
+
 function json(res, body, code = 200) {
   res.writeHead(code, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -320,6 +345,7 @@ function ui(port) {
       if (url.pathname === "/api/inventory") return json(res, await inventoryData());
       if (url.pathname === "/api/packs") return json(res, packsData());
       if (url.pathname === "/api/packs/check") return json(res, await checkPackData(url.searchParams.get("id") || undefined));
+      if (url.pathname === "/api/impact") return json(res, await impactData());
       if (url.pathname !== "/") { res.writeHead(404); return res.end(); }
       res.writeHead(200, { "content-type": "text/html; charset=utf8" });
       res.end(fs.readFileSync(htmlPath));
@@ -362,7 +388,7 @@ const HELP = `
                                                 (default target: ~/.claude/skills)
               --check [id]                      validate install specs against upstream HEAD
     skill     Install the agent-economy-setup skill (teaches any agent to run ae)
-    ui        Local dashboard (health, inventory, packs) in your browser
+    ui        Local dashboard (health, inventory, impact, packs) in your browser
               --port <n>   default 4747; --no-open skips launching the browser
     help      This text
 
