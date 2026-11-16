@@ -60,9 +60,10 @@ test("help exits 0 and lists every command", () => {
   for (const c of ["init", "verify", "doctor", "skill", "ui"]) assert.match(r.stdout, new RegExp(c));
 });
 
-test("doctor exits 0 and reports the stack", () => {
+test("doctor exits 0 and checks the files the rules assume", () => {
   const r = run(["doctor"], os.tmpdir());
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /rtk/);
-  assert.match(r.stdout, /billion-context/);
+  assert.match(r.stdout, /opencode CLI/);
+  assert.match(r.stdout, /AGENTS\.md/);
+  assert.doesNotMatch(r.stdout, /rtk|billion-context/);
 });

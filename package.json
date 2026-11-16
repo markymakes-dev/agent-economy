@@ -8,7 +8,7 @@
     "README.md",
     "LICENSE"
   ],
-  "description": "Request economy for coding agents — treat every model round-trip as the billable unit. Idempotent AGENTS.md presets, tool detection, CI verify.",
+  "description": "Request economy for coding agents — treat every model round-trip as the billable unit. Idempotent AGENTS.md presets, CI verify.",
   "type": "module",
   "bin": {
     "ae": "src/cli.js",

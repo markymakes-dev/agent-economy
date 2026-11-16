@@ -8,8 +8,8 @@ npm i -g agent-economy        # once per machine (or use npx agent-economy <cmd>
 ae init                       # per project: interactive level + scope
 ae init --level strict --yes  # scripted onboarding
 ae verify --min-level strict  # CI gate: exit 1 missing, 2 below level
-ae doctor                     # stack (rtk / billion-context, with live health) + setup checks
-ae ui                         # local dashboard: health + impact
+ae doctor                     # files the rules assume (opencode CLI, /goal, AGENTS.md)
+ae ui                         # local dashboard: setup health
 ```
 
 ### Install with your agent (no terminal needed)
@@ -30,7 +30,7 @@ Token-compression tools (billion-context, RTK, headroom) are plentiful. **Reques
 ae ui        # → http://127.0.0.1:4747 (Ctrl+C to stop)
 ```
 
-A local, read-only control room for your token-economy stack: live tool health, and **Impact** — real savings counters read from the stack itself (`rtk gain --format json`, the billion-context proxy's `/__bili/stats`): commands filtered, tokens saved, requests served, cache-hit %. With **copyable commands instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
+A local, read-only page for this machine's setup checks — the files and tools the request-economy rules assume — with **copyable remedies instead of install buttons** (the tool manages rules; it never mutates your runtime). Node stdlib only, no dependencies, dark and light themes.
 
 ![agent-economy dashboard, light](docs/ui-light.png)
 ![agent-economy dashboard, dark](docs/ui-dark.png)
@@ -70,7 +70,7 @@ Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` wor
 
 ## Scope
 
-agent-economy deliberately does **one thing**: manage the request-economy rules as an artifact and prove their effect. It does not curate or install third-party skills (use `npx skills add <repo>` for that), and it does not inventory your agent config. RTK and billion-context are **runtime tools**, not content — `ae doctor` shows whether they're alive and prints their setup commands; `ae` never installs them for you (see [ADR-0001](docs/adr/0001-rules-artifact-only.md)).
+agent-economy deliberately does **one thing**: manage the request-economy rules as an artifact. It does not curate or install third-party skills (use `npx skills add <repo>` for that), does not inventory your agent config, and integrates with no runtime tools — no rtk health, no proxy stats (see [ADR-0001](docs/adr/0001-rules-artifact-only.md) and [ADR-0002](docs/adr/0002-no-third-party-integration.md)).
 
 ## Positioning
 

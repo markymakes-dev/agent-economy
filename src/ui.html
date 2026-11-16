@@ -79,23 +79,6 @@
     padding: 0.25rem 0.5rem 0;
   }
   .wordmark span { color: var(--accent); }
-  .nav { display: flex; flex-direction: column; gap: 2px; }
-  .nav-item {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    font: inherit;
-    font-weight: 500;
-    color: var(--muted);
-    text-align: left;
-    padding: 0.4rem 0.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease;
-  }
-  .nav-item:hover { background: var(--inset); color: var(--ink); }
-  .nav-item.is-active { background: var(--accent-soft); color: var(--accent); }
-  [data-theme="dark"] .nav-item.is-active { color: var(--accent); }
   .side-foot {
     margin: auto 0.5rem 0.25rem;
     font-size: 12px;
@@ -145,18 +128,6 @@
     border: 1px solid var(--border);
     border-radius: 8px;
   }
-  /* ---------- status rows (health) ---------- */
-  .stat-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.75rem;
-    padding: 0.875rem 1rem;
-  }
-  .stat-row + .stat-row { border-top: 1px solid var(--border); }
-  .stat-name { font-weight: 500; min-width: 9.5rem; }
-  .stat-detail { color: var(--muted); flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .stat-fix { flex-basis: 100%; display: flex; align-items: center; gap: 0.5rem; padding-top: 0.15rem; }
   /* ---------- tables ---------- */
   .table-wrap { overflow-x: auto; border-radius: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -176,8 +147,6 @@
   tbody tr { transition: background-color 150ms ease; }
   tbody tr:hover { background: var(--accent-soft); }
   [data-theme="dark"] tbody tr:hover { background: #14283c; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .cmds { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
   /* ---------- chips / buttons ---------- */
   .chip {
     display: inline-flex;
@@ -209,7 +178,7 @@
   .btn:hover { background: var(--inset); }
   .btn.small { padding: 0.15rem 0.5rem; font-size: 12px; }
   .btn[disabled] { cursor: default; color: var(--muted); }
-  :is(.btn, .nav-item, .copy):focus-visible {
+  :is(.btn, .copy):focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
   }
@@ -249,12 +218,6 @@
     align-items: center;
     gap: 0.75rem;
   }
-  .empty {
-    border: 1px dashed var(--border-strong);
-    border-radius: 8px;
-    padding: 1rem;
-    color: var(--muted);
-  }
   /* ---------- mobile ---------- */
   @media (max-width: 767px) {
     .shell { display: flex; flex-direction: column; }
@@ -267,11 +230,8 @@
       border-bottom: 1px solid var(--border);
       overflow: visible;
     }
-    .nav { flex-direction: row; }
     .side-foot { display: none; }
     main { padding: 1rem; }
-    .stat-name { min-width: 0; }
-    .stat-row { flex-wrap: wrap; }
   }
 </style>
 </head>
@@ -279,30 +239,21 @@
 <div class="shell">
   <aside class="side">
     <div class="wordmark">agent-<span>economy</span></div>
-    <nav class="nav" aria-label="Sections">
-      <button type="button" class="nav-item is-active" data-view="health" aria-current="page">Health</button>
-      <button type="button" class="nav-item" data-view="impact">Impact</button>
-    </nav>
     <p class="side-foot">Every model round-trip bills one request. Batch the independent ones.</p>
   </aside>
   <header class="top">
-    <h1 id="view-title">Health</h1>
-    <p class="sub" id="view-sub"></p>
+    <h1>Health</h1>
+    <p class="sub">Setup checks for this machine — the files and tools the request-economy rules assume.</p>
     <button type="button" class="btn small" id="theme" aria-label="Switch to dark theme" aria-pressed="false">Dark</button>
   </header>
   <main id="main" tabindex="-1">
-    <section class="view" id="view-health" role="tabpanel" aria-labelledby="view-title"></section>
+    <section class="view" id="view-health"></section>
   </main>
 </div>
 <script>
 "use strict";
 const $ = (s) => document.querySelector(s);
 const main = $("#main");
-
-const SUBTITLES = {
-  health: "Live status of the token-economy stack, plus setup checks for this machine.",
-  impact: "What the stack actually saved on this machine — requests, tokens, cache hit rate. The tools keep the numbers; ae only reads them."
-};
 
 /* ---------- tiny DOM helpers (no innerHTML — untrusted data stays text) ---------- */
 function el(tag, attrs, ...children) {
@@ -359,113 +310,31 @@ function group(title, ...body) {
   return el("section", { class: "group" }, el("h2", { text: title }), ...body);
 }
 
-/* ---------- views ---------- */
-async function renderHealth(mount, retry) {
+/* ---------- view ---------- */
+async function renderHealth(mount) {
   const doc = await load("doctor", "/api/doctor");
-  const stack = doc.filter((r) => r.detail !== undefined);
-  const checks = doc.filter((r) => r.detail === undefined);
-  const stackCard = el("div", { class: "card" });
-  for (const s of stack) {
-    const row = el("div", { class: "stat-row" },
-      el("span", { class: "stat-name", text: s.name }),
-      el("span", { class: "stat-detail", text: s.detail }),
-      chip(s.ok ? "ok" : "bad", s.ok ? "healthy" : "down"));
-    if (s.hint) row.append(el("span", { class: "stat-fix" }, copyCmd(s.hint, s.name)));
-    stackCard.append(row);
-  }
-  const checksTable = el("div", { class: "table-wrap card" },
+  const table = el("div", { class: "table-wrap card" },
     el("table", {},
       el("thead", {}, el("tr", {},
         el("th", { scope: "col", text: "Check" }),
         el("th", { scope: "col", text: "State" }),
         el("th", { scope: "col", text: "Remedy" }))),
       el("tbody", {},
-        ...checks.map((r) => el("tr", {},
+        ...doc.map((r) => el("tr", {},
           el("td", { text: r.name }),
           el("td", {}, chip(r.ok ? "ok" : "warn", r.ok ? "present" : "missing")),
           el("td", {}, r.ok ? "—" : copyCmd(r.hint, r.name)))))));
   mount.replaceChildren(
-    group("Token-economy stack", stackCard,
-      el("p", { class: "note", text: "Live versions detected on this machine. ae never installs these — commands are here to copy." })),
-    group("Setup checks", checksTable,
-      el("p", { class: "note", text: "Files and tools the request-economy rules assume. Run the remedy to fix a missing row." })));
-}
-function fmt(n) {
-  if (!Number.isFinite(n)) return "—";
-  const a = Math.abs(n);
-  if (a >= 1e9) return (n / 1e9).toFixed(1) + "B";
-  if (a >= 1e6) return (n / 1e6).toFixed(1) + "M";
-  if (a >= 1e3) return (n / 1e3).toFixed(1) + "K";
-  return String(n);
-}
-function numTable(rows) {
-  return el("div", { class: "table-wrap card" },
-    el("table", {},
-      el("thead", {}, el("tr", {},
-        el("th", { scope: "col", text: "Metric" }),
-        el("th", { scope: "col", text: "Value", class: "num" }))),
-      el("tbody", {}, ...rows.map(([m, v]) => el("tr", {},
-        el("td", { text: m }), el("td", { class: "num", text: v }))))));
-}
-async function renderImpact(mount, retry) {
-  const d = await load("impact", "/api/impact");
-  const parts = [];
-  if (d.rtk) {
-    parts.push(group("rtk — shell output filter", numTable([
-      ["Commands filtered", fmt(d.rtk.total_commands)],
-      ["Tokens in → out", `${fmt(d.rtk.total_input)} → ${fmt(d.rtk.total_output)}`],
-      ["Tokens saved", fmt(d.rtk.total_saved)],
-      ["Avg reduction", `${(d.rtk.avg_savings_pct || 0).toFixed(1)}%`]
-    ]),
-      el("p", { class: "note", text: "Live counters from `rtk gain --format json` — measured where the hook rewrote a command." })));
-  } else {
-    parts.push(group("rtk — shell output filter", el("div", { class: "empty", text: "rtk not detected — install hint on the Health view." })));
-  }
-  if (d.bili.length) {
-    for (const b of d.bili) {
-      const hit = b.agg.input ? Math.round((b.agg.cached / b.agg.input) * 100) : 0;
-      parts.push(group(`billion-context — ${b.origin.replace("http://", "")}`, numTable([
-        ["Sessions proxied", fmt(b.agg.sessions)],
-        ["Model requests", fmt(b.agg.requests)],
-        ["Input tokens", fmt(b.agg.input)],
-        ["Served from cache", `${fmt(b.agg.cached)} (${hit}%)`],
-        ["Output tokens", fmt(b.agg.output)]
-      ]),
-        el("p", { class: "note", text: "Aggregated from the proxy's /__bili/stats. Cached input re-bills at ~0 — that percentage is what folds exist to grow." })));
-    }
-  } else {
-    parts.push(group("billion-context — context folds", el("div", { class: "empty", text: "No responding proxy instance found — see Health." })));
-  }
-  parts.push(el("p", { class: "note", text: "ae keeps no telemetry of its own — the artifact is a text file; there is nothing to phone home." }));
-  mount.replaceChildren(...parts);
+    group("Setup checks", table,
+      el("p", { class: "note", text: "Run the remedy to fix a missing row." })));
 }
 
-const RENDER = { health: renderHealth, impact: renderImpact };
-
-async function show(view) {
-  for (const b of document.querySelectorAll(".nav-item")) {
-    const active = b.dataset.view === view;
-    b.classList.toggle("is-active", active);
-    if (active) b.setAttribute("aria-current", "page");
-    else b.removeAttribute("aria-current");
-  }
-  $("#view-title").textContent = view[0].toUpperCase() + view.slice(1);
-  $("#view-sub").textContent = SUBTITLES[view];
-  const mount = el("div", {});
-  $("#view-health").replaceWith(mount);
-  mount.className = "view";
-  mount.id = "view-health";
-  mount.setAttribute("role", "tabpanel");
-  mount.setAttribute("aria-labelledby", "view-title");
-  const retry = () => show(view);
+const mount = $("#view-health");
+async function boot() {
   mount.replaceChildren(skeletonRows(4, 3));
-  try { await RENDER[view](mount, retry); }
-  catch (e) { mount.replaceChildren(errorBox(String(e.message || e), retry)); }
+  try { await renderHealth(mount); }
+  catch (e) { mount.replaceChildren(errorBox(String(e.message || e), boot)); }
 }
-
-/* ---------- nav + theme ---------- */
-for (const b of document.querySelectorAll(".nav-item"))
-  b.addEventListener("click", () => show(b.dataset.view));
 
 const themeBtn = $("#theme");
 function applyTheme(t) {
@@ -481,8 +350,7 @@ themeBtn.addEventListener("click", () => {
 });
 applyTheme(localStorage.getItem("ae-theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 
-const wanted = new URLSearchParams(location.search).get("view");
-show(RENDER[wanted] ? wanted : "health");
+boot();
 </script>
 </body>
 </html>

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import http from "node:http";
-import { execSync, spawn, spawnSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
@@ -96,79 +96,18 @@ async function doctorData() {
         /goal/i.test(f) || /goal/i.test(fs.readFileSync(path.join(opencodeDir, d, f), "utf8")));
     } catch { return false; }
   });
-  const stack = [
-    { ...(await rtkStatus()), name: "rtk (output filter)" },
-    { ...(await biliStatus()), name: "billion-context (context folds)" }
-  ];
   const rows = [
-    ...stack,
     ["opencode CLI", hasBin("opencode"), "opencode.ai"],
     ["/goal (opencode command)", goalInstalled || hasBin("opencode"), "built into opencode 2.x — else install prevalentWare/opencode-goal-plugin"],
     ["project AGENTS.md", fs.existsSync(path.resolve("AGENTS.md")), "economy init"],
     ["global AGENTS.md", fs.existsSync(globalFile()), "economy init --scope global"]
-  ].map((r) => Array.isArray(r) ? ({ name: r[0], ok: r[1], hint: r[2] }) : r);
+  ].map((r) => ({ name: r[0], ok: r[1], hint: r[2] }));
   return rows;
 }
 
 async function doctor() {
   for (const r of await doctorData())
-    console.log(`  ${r.ok ? "✔" : "✘"} ${r.name}${r.detail ? ` — ${r.detail}` : ""}${r.ok ? "" : `  → ${r.hint}`}`);
-}
-
-function listDir(p, filter) {
-  try { return fs.readdirSync(p, { withFileTypes: true }).filter((d) => filter(d, p)).map((d) => d.name); }
-  catch { return []; }
-}
-
-function rtkStatus() {
-  const r = spawnSync("rtk", ["--version"], { encoding: "utf8", timeout: 5000 });
-  const v = (r.stdout || "").trim().split(/\r?\n/)[0] || "";
-  if (r.error && !v) return { name: "rtk", ok: false, detail: "not found", hint: "winget install rtk-ai.rtk · then: rtk init -g --opencode --hook-only --no-patch" };
-  if (!v) return { name: "rtk", ok: true, detail: "installed (version unknown)", hint: null };
-  return { name: "rtk", ok: true, detail: v.startsWith("rtk") ? v.slice(4) : v, hint: null };
-}
-
-async function biliStatus() {
-  const dir = path.join(os.homedir(), ".local", "state", "billion-context", "instances");
-  const files = listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"));
-  for (const f of files) {
-    try {
-      const inst = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-      if (!inst.origin) continue;
-      const res = await fetch(`${inst.origin}/__bili/health`, { signal: AbortSignal.timeout(3000) });
-      const h = await res.json();
-      return h.ok
-        ? { name: "billion-context", ok: true, detail: `v${h.version} (${inst.origin})`, hint: null }
-        : { name: "billion-context", ok: false, detail: `responding, not healthy (${inst.origin})`, hint: null };
-    } catch { /* dead instance file, try next */ }
-  }
-  if (files.length) return { name: "billion-context", ok: false, detail: "proxy not responding", hint: "restart opencode to relaunch it" };
-  return { name: "billion-context", ok: false, detail: "not detected", hint: "npm i -g billion-context · then: bili plugin install opencode" };
-}
-
-async function impactData() {
-  const out = { rtk: null, bili: [] };
-  const r = spawnSync("rtk", ["gain", "--format", "json"], { encoding: "utf8", timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
-  if (r.status === 0 && r.stdout) { try { out.rtk = JSON.parse(r.stdout).summary || null; } catch { /* unparseable gain output */ } }
-  const dir = path.join(os.homedir(), ".local", "state", "billion-context", "instances");
-  for (const f of listDir(dir, (d) => d.isFile() && d.name.endsWith(".json"))) {
-    try {
-      const inst = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8"));
-      if (!inst.origin) continue;
-      const res = await fetch(`${inst.origin}/__bili/stats`, { signal: AbortSignal.timeout(3000) });
-      const s = await res.json();
-      const agg = { sessions: 0, requests: 0, input: 0, cached: 0, output: 0 };
-      for (const x of s.sessions || []) {
-        agg.sessions++;
-        agg.requests += x.requests || 0;
-        agg.input += x.inputTokens || 0;
-        agg.cached += x.cachedTokens || 0;
-        agg.output += x.outputTokens || 0;
-      }
-      out.bili.push({ origin: inst.origin, agg });
-    } catch { /* instance file dead or proxy busy — skip */ }
-  }
-  return out;
+    console.log(`  ${r.ok ? "✔" : "✘"} ${r.name}${r.ok ? "" : `  → ${r.hint}`}`);
 }
 
 function json(res, body, code = 200) {
@@ -182,7 +121,6 @@ function ui(port) {
     const url = new URL(req.url, "http://127.0.0.1");
     try {
       if (url.pathname === "/api/doctor") return json(res, await doctorData());
-      if (url.pathname === "/api/impact") return json(res, await impactData());
       if (url.pathname !== "/") { res.writeHead(404); return res.end(); }
       res.writeHead(200, { "content-type": "text/html; charset=utf8" });
       res.end(fs.readFileSync(htmlPath));
@@ -217,10 +155,10 @@ const HELP = `
               --yes                         non-interactive defaults
     verify    Check a file carries the block; exit 1 missing, 2 below level
               [file=AGENTS.md] --min-level standard|strict
-    doctor    Detect the stack (rtk, billion-context — with live health) and
-              the files the rules assume (AGENTS.md, goal command)
+    doctor    Check the files and tools the request-economy rules assume
+              (opencode CLI, /goal, project + global AGENTS.md)
     skill     Install the agent-economy-setup skill (teaches any agent to run ae)
-    ui        Local dashboard (health, impact) in your browser
+    ui        Local dashboard (setup health) in your browser
               --port <n>   default 4747; --no-open skips launching the browser
     help      This text
 
