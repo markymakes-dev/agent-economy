@@ -14,7 +14,7 @@ agent-economy does one thing: **manage the request-economy rules as an idempoten
 
 Concretely, from v0.4.0:
 
-- Kept: `init`, `verify`, `doctor` (now including live stack health for rtk and billion-context), `skill`, `ui` (Health + Impact views), the agentic setup skill, CI verify.
+- Kept: `init`, `verify`, `doctor` (then including live companion-tool health — since removed by ADR-0002), `skill`, `ui` (Health + Impact views — Impact later removed by ADR-0002), the agentic setup skill, CI verify.
 - Removed: `packs` (registry.json, install, drift check, packs-check.yml), `inventory` (command, /api/inventory, Inventory view).
 
 ## Reasons

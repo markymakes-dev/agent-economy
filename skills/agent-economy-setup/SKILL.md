@@ -21,7 +21,7 @@ Free and metered agent tiers bill **per request** — every model round-trip cos
 2. Run `npx -y agent-economy@latest skill` so future sessions can manage the setup themselves.
 3. Run `npx -y agent-economy@latest doctor` and report the results.
 
-ae does not install third-party skills or tools — it manages one text artifact and checks the files its rules assume. Everything else (rtk, billion-context, skills from other collections) is a separate decision for the human.
+ae does not install third-party skills or tools — it manages one text artifact and checks the files its rules assume. Everything else — other tools, skills from other collections — is a separate decision for the human.
 
 ## Guardrails
 

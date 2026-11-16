@@ -22,7 +22,7 @@ After that, every future session discovers the `agent-economy-setup` skill and k
 
 ## Why requests, not tokens
 
-Token-compression tools (billion-context, RTK, headroom) are plentiful. **Request-economy tooling does not exist** — yet per-request metering is what actually caps free-tier sessions (measured baseline: ~7 model requests per user message in a real opencode session). Batching 3 independent calls into 1 round saves 2 requests *and* 2 round-trips of latency, every time. No plugin can force batching — call count is decided at generation time — so the prompt is the only injection point. This project owns that injection point.
+Token-compression tools are plentiful. **Request-economy tooling does not exist** — yet per-request metering is what actually caps free-tier sessions (measured baseline: ~7 model requests per user message in a real opencode session). Batching 3 independent calls into 1 round saves 2 requests *and* 2 round-trips of latency, every time. No plugin can force batching — call count is decided at generation time — so the prompt is the only injection point. This project owns that injection point.
 
 ## The dashboard (`ae ui`)
 
@@ -70,7 +70,7 @@ Releases: push a tag (`git tag vX.Y.Z && git push --tags`) — the `release` wor
 
 ## Scope
 
-agent-economy deliberately does **one thing**: manage the request-economy rules as an artifact. It does not curate or install third-party skills (use `npx skills add <repo>` for that), does not inventory your agent config, and integrates with no runtime tools — no rtk health, no proxy stats (see [ADR-0001](docs/adr/0001-rules-artifact-only.md) and [ADR-0002](docs/adr/0002-no-third-party-integration.md)).
+agent-economy deliberately does **one thing**: manage the request-economy rules as an artifact. It does not curate or install third-party skills (use `npx skills add <repo>` for that), does not inventory your agent config, and integrates with no runtime tools (see [ADR-0001](docs/adr/0001-rules-artifact-only.md) and [ADR-0002](docs/adr/0002-no-third-party-integration.md)).
 
 ## Positioning
 

@@ -21,7 +21,7 @@ const RULES = {
     "- Emit independent tool calls in PARALLEL within one round; never spread them one-per-round.",
     "- Combine closely-related shell commands into a single call (max ~5, `;`-joined); batch related file reads into one round.",
     "- Before running anything, check whether a result already in this session answers it; never re-run for information you already have.",
-    "- Filter expected-large output at the source (`rtk <cmd>`, `--oneline`, `| head -50`) so rounds stay cheap to fold."
+    "- Filter expected-large output at the source (`--oneline`, `| head -50`) so rounds stay cheap to fold."
   ],
   strict: [
     "- Emit independent tool calls in PARALLEL within one round; never spread them one-per-round.",
@@ -29,7 +29,7 @@ const RULES = {
     "- Before running anything, check whether a result already in this session answers it; never re-run for information you already have.",
     "- When an answer is inferable, state the assumption and proceed — do not spend a round asking a clarifying question.",
     "- Do a task's follow-up work in the same turn; do not stop after each micro-step.",
-    "- Filter expected-large output at the source (`rtk <cmd>`, `--oneline`, `| head -50`) so rounds stay cheap to fold.",
+    "- Filter expected-large output at the source (`--oneline`, `| head -50`) so rounds stay cheap to fold.",
     "- Avoid subagents for small lookups — each runs its own multi-request loop; use direct tools instead."
   ]
 };
